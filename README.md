@@ -1,6 +1,6 @@
 # 📦 Purchase Order Management System (POMS)
 
-A full-stack **Purchase Order Management System (POMS)** built as a final-year capstone project following professional software engineering practices.
+A full-stack **Purchase Order Management System (POMS)** built as a pre-final-year capstone project following professional software engineering practices.
 
 The application is designed to streamline the procurement process by enabling organizations to create, approve, track, and manage purchase orders through a secure, role-based workflow.
 
