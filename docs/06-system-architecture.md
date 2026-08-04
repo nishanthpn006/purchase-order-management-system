@@ -6,6 +6,14 @@ The Purchase Order Management System (POMS) follows a Three-Tier Architecture to
 
 ---
 
+
+## System Architecture Diagram
+
+![Purchase Order Management System Architecture](../diagrams/system-architecture.png)
+
+
+---
+
 ## Architecture Overview
 
 The application is divided into three major layers:
