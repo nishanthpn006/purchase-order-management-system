@@ -1,0 +1,93 @@
+Table Roles {
+  role_id int [pk, increment]
+  role_name varchar
+  description text
+}
+
+Table Departments {
+  department_id int [pk, increment]
+  department_name varchar
+}
+
+Table Users {
+  user_id int [pk, increment]
+  full_name varchar
+  email varchar
+  password_hash varchar
+  phone varchar
+  role_id int
+  department_id int
+  created_at timestamp
+}
+
+Table Vendors {
+  vendor_id int [pk, increment]
+  vendor_name varchar
+  contact_person varchar
+  email varchar
+  phone varchar
+  address text
+}
+
+Table Products {
+  product_id int [pk, increment]
+  product_name varchar
+  description text
+  unit_price decimal
+  vendor_id int
+}
+
+Table PurchaseRequests {
+  request_id int [pk, increment]
+  user_id int
+  request_date date
+  total_amount decimal
+  status varchar
+}
+
+Table PurchaseOrders {
+  po_id int [pk, increment]
+  request_id int
+  vendor_id int
+  created_by int
+  order_date date
+  status varchar
+}
+
+Table PurchaseOrderItems {
+  item_id int [pk, increment]
+  po_id int
+  product_id int
+  quantity int
+  price decimal
+}
+
+Table Approvals {
+  approval_id int [pk, increment]
+  request_id int
+  approved_by int
+  approval_date date
+  approval_status varchar
+  comments text
+}
+
+Table Notifications {
+  notification_id int [pk, increment]
+  user_id int
+  message text
+  is_read boolean
+  created_at timestamp
+}
+
+Ref: Users.role_id > Roles.role_id
+Ref: Users.department_id > Departments.department_id
+Ref: Products.vendor_id > Vendors.vendor_id
+Ref: PurchaseRequests.user_id > Users.user_id
+Ref: PurchaseOrders.request_id > PurchaseRequests.request_id
+Ref: PurchaseOrders.vendor_id > Vendors.vendor_id
+Ref: PurchaseOrders.created_by > Users.user_id
+Ref: PurchaseOrderItems.po_id > PurchaseOrders.po_id
+Ref: PurchaseOrderItems.product_id > Products.product_id
+Ref: Approvals.request_id > PurchaseRequests.request_id
+Ref: Approvals.approved_by > Users.user_id
+Ref: Notifications.user_id > Users.user_id
