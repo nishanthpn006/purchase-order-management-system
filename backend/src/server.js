@@ -3,7 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 const authRoutes = require("./routes/authRoutes");
-
+const db = require("./config/db");
 const app = express();
 
 app.use(cors());
@@ -23,7 +23,18 @@ app.get("/api/health", (req, res) => {
 app.use("/api", authRoutes);
 
 const PORT = process.env.PORT || 5000;
+async function testDB() {
+    try {
+        const connection = await db.getConnection();
+        console.log("✅ MySQL Connected Successfully");
+        connection.release();
+    } catch (err) {
+        console.error("❌ MySQL Connection Failed");
+        console.error(err.message);
+    }
+}
 
+testDB();
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
