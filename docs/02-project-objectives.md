@@ -82,8 +82,8 @@ Develop a secure, scalable, and user-friendly Purchase Order Management System (
 
 - Follow Clean Code principles.
 - Apply REST API best practices.
-- Use Prisma ORM.
-- Store data in PostgreSQL.
+- Use mysql2 connection pooling with raw SQL queries.
+- Store data in MySQL 8.
 - Implement proper validation.
 - Apply secure authentication.
 - Maintain modular architecture.
@@ -101,4 +101,4 @@ The project will be considered successful if it:
 - Demonstrates a scalable architecture.
 - Maintains clean and readable code.
 - Includes comprehensive documentation.
-- Is deployed and accessible online.
+- Is deployed and accessible online.

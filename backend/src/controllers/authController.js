@@ -42,18 +42,8 @@ const login = async (req, res) => {
             });
         }
 
-        // Password verification:
-        // - If the stored value starts with "$2" it's a bcrypt hash → use bcrypt.compare
-        // - Otherwise fall back to plain-text comparison (existing sample data)
-        //   NOTE: Plain-text passwords should be migrated to bcrypt hashes.
-        let isMatch = false;
-        const storedPassword = user.password;
-
-        if (storedPassword.startsWith("$2")) {
-            isMatch = await bcrypt.compare(password, storedPassword);
-        } else {
-            isMatch = password === storedPassword;
-        }
+        // Password verification (bcrypt mandatory)
+        const isMatch = await bcrypt.compare(password, user.password);
 
         if (!isMatch) {
             return res.status(401).json({

@@ -1,137 +1,69 @@
 # Functional Requirements
 
-## Introduction
+## 1. Introduction
 
-The Purchase Order Management System (POMS) is designed to automate and streamline the procurement process within an organization. The system enables employees to submit purchase requests, allows managers to review and approve requests, manages vendors, generates purchase orders, and tracks the entire purchasing lifecycle.
+The Purchase Order Management System (POMS) is an enterprise application designed to streamline procurement operations, vendor management, product tracking, purchase ordering, inventory control, and delivery receipts.
 
----
-
-# Functional Requirements
-
-## FR-01: User Authentication
-
-- The system shall allow users to register with valid credentials.
-- The system shall allow registered users to log in securely.
-- The system shall encrypt user passwords before storing them.
-- The system shall support role-based authentication.
-- The system shall allow users to log out securely.
+This document clearly distinguishes between **Currently Implemented (Review-I MVP)** functionality and **Future Scope / Planned Enhancements**.
 
 ---
 
-## FR-02: User Management
+## 2. Currently Implemented Requirements (Review-I MVP)
 
-- The administrator shall create, update, and delete user accounts.
-- The administrator shall assign roles to users.
-- The system shall maintain user profile information.
-- The system shall allow administrators to activate or deactivate user accounts.
+### FR-01: User Authentication & Session Control
 
----
+- **FR-01.1**: The system shall authenticate users against the `users` table in MySQL using email and password.
+- **FR-01.2**: The system shall verify passwords using `bcrypt` salted hash comparison (`bcrypt.compare`).
+- **FR-01.3**: The system shall issue a signed JSON Web Token (JWT) containing user ID, email, and role upon successful login.
+- **FR-01.4**: The system shall return a generic 401 error message ("Invalid email or password.") upon authentication failure to prevent account enumeration.
+- **FR-01.5**: The system shall enforce client-side route protection, automatically redirecting unauthenticated visitors to the login interface.
+- **FR-01.6**: The system shall persist active JWT tokens and decoded user sessions in browser `localStorage`.
+- **FR-01.7**: The system shall support user logout, clearing local credentials and redirecting to the login page.
 
-## FR-03: Purchase Request Management
+### FR-02: Operations Dashboard
 
-- Employees shall be able to create purchase requests.
-- Employees shall provide item name, quantity, estimated price, justification, and required date.
-- The system shall generate a unique request ID.
-- Employees shall edit requests before approval.
-- Employees shall cancel pending requests.
+- **FR-02.1**: The system shall compute real-time KPI metrics from MySQL: Total Vendors, Total Products, Total Purchase Orders, and Total Inventory Items.
+- **FR-02.2**: The system shall calculate pending order counters and low-stock alert counters.
+- **FR-02.3**: The system shall render a Recent Purchase Orders overview table displaying PO Number, Vendor Name, Total Amount, and Status Badge.
+- **FR-02.4**: The system shall render an Inventory Summary table displaying Product Name, Quantity in Stock, and Stock Status.
 
----
+### FR-03: Vendor Management
 
-## FR-04: Approval Workflow
+- **FR-03.1**: The system shall retrieve and display all vendor records from MySQL (`GET /api/vendors`).
+- **FR-03.2**: The system shall display vendor details including Vendor Name, Contact Person, Email, Phone, GST Number, and Active/Inactive status.
+- **FR-03.3**: The system shall support client-side filtering and real-time text search across vendor fields.
 
-- Managers shall review submitted purchase requests.
-- Managers shall approve or reject requests.
-- Managers shall provide comments when rejecting requests.
-- The system shall notify employees after approval or rejection.
-- Requests shall move through predefined approval stages.
+### FR-04: Products Catalog
 
----
+- **FR-04.1**: The system shall retrieve and display catalog items joined with vendor details (`GET /api/products`).
+- **FR-04.2**: The system shall display Product Name, Category, Vendor Name, Unit Price, Unit of Measurement, and Availability Status.
+- **FR-04.3**: The system shall support client-side filtering and search across product attributes.
 
-## FR-05: Vendor Management
+### FR-05: Purchase Orders View
 
-- The administrator shall add vendor details.
-- The administrator shall update vendor information.
-- The administrator shall remove inactive vendors.
-- The system shall store vendor contact details.
-- The system shall maintain vendor history.
+- **FR-05.1**: The system shall retrieve purchase order headers joined with vendor and creator names (`GET /api/purchase-orders`).
+- **FR-05.2**: The system shall display PO Number, Vendor Name, Order Date, Expected Delivery Date, Total Amount, and Status Badges (`Pending`, `Approved`, `Completed`, `Rejected`).
 
----
+### FR-06: Inventory Monitoring
 
-## FR-06: Purchase Order Generation
+- **FR-06.1**: The system shall retrieve inventory stock records joined with product and vendor details (`GET /api/inventory`).
+- **FR-06.2**: The system shall compute stock status dynamically:
+  - `In Stock` (Quantity > Reorder Level)
+  - `Low Stock` (0 < Quantity ≤ Reorder Level)
+  - `Reorder Required` (Quantity = 0)
 
-- Approved purchase requests shall be converted into purchase orders.
-- The system shall generate unique purchase order numbers.
-- Purchase orders shall include vendor information, item details, pricing, and approval details.
-- Purchase orders shall be downloadable in PDF format.
+### FR-07: Goods Receipts Tracking
 
----
-
-## FR-07: Inventory Verification
-
-- The system shall verify stock availability before generating purchase requests.
-- The system shall prevent duplicate purchase requests for available inventory.
-- The system shall notify users if sufficient stock exists.
+- **FR-07.1**: The system shall retrieve delivery receipts joined with purchase orders and receiver names (`GET /api/goods-receipts`).
+- **FR-07.2**: The system shall display PO Reference, Vendor Name, Received Date, Receiver Name, and Delivery Remarks.
 
 ---
 
-## FR-08: Notifications
+## 3. Future Scope & Planned Enhancements (Review-II / Production)
 
-- The system shall notify managers about pending approvals.
-- The system shall notify employees about request status changes.
-- The system shall send notifications for purchase order creation.
-- The system shall notify vendors when purchase orders are issued (future enhancement).
-
----
-
-## FR-09: Reports
-
-- The administrator shall generate monthly purchase reports.
-- The administrator shall generate vendor-wise reports.
-- The administrator shall generate department-wise purchase reports.
-- Reports shall be exportable as PDF or Excel files.
-
----
-
-## FR-10: Search and Filter
-
-- Users shall search purchase requests by request ID.
-- Users shall search purchase orders by PO number.
-- Users shall filter requests by status.
-- Users shall filter records by department, vendor, and date.
-
----
-
-## FR-11: Audit Trail
-
-- The system shall record every important action.
-- The system shall store timestamps for all activities.
-- The system shall record the user responsible for each activity.
-- Audit records shall not be editable.
-
----
-
-## FR-12: Dashboard
-
-- Employees shall view their submitted requests.
-- Managers shall view pending approvals.
-- Administrators shall view system statistics.
-- The dashboard shall display recent purchase activities.
-
----
-
-# Functional Summary
-
-The Purchase Order Management System shall provide:
-
-- Secure user authentication.
-- Role-based access control.
-- Purchase request creation.
-- Approval workflow.
-- Vendor management.
-- Purchase order generation.
-- Inventory verification.
-- Notifications.
-- Reporting.
-- Search and filtering.
-- Audit trail.
-- Dashboard with analytics.
+- **FR-08: Full Vendor & Product CRUD**: Interactive creation, updating, and deactivation of vendors and products.
+- **FR-09: Interactive PO Creator**: Multi-line item purchase order creation form with automatic total price calculation.
+- **FR-10: Goods Receipt Logging**: Interactive receipt entry form linked to pending purchase orders that automatically increments stock levels.
+- **FR-11: Role-Based Authorization (RBAC)**: Fine-grained permission checks restricting write actions based on user role (`Admin`, `Manager`, `Employee`).
+- **FR-12: PDF Purchase Order Export**: Server-side or client-side PDF document generation for purchase orders.
+- **FR-13: Audit Trail**: Dedicated activity log table tracking user actions and timestamps.

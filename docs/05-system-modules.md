@@ -1,127 +1,69 @@
 # System Modules
 
-## Introduction
+## 1. Introduction
 
-The Purchase Order Management System (POMS) is divided into several modules, each responsible for a specific business function. These modules work together to automate the procurement process from purchase request creation to purchase order generation.
+The Purchase Order Management System (POMS) architecture is organized into modular business components.
 
----
-
-# 1. Authentication Module
-
-## Purpose
-Provides secure login and access control.
-
-## Features
-- User login
-- User logout
-- Password management
-- Role-based authentication
+This document details the **Currently Implemented Review-I Modules** along with their purpose, functionality, API endpoints, and database tables, followed by **Future Enhancements**.
 
 ---
 
-# 2. User Management Module
+## 2. Implemented Review-I Modules
 
-## Purpose
-Manages user accounts and roles.
+### 1. Authentication Module
 
-## Features
-- Add users
-- Edit user details
-- Delete users
-- Assign roles
-- Manage permissions
+- **Purpose**: Provides secure login, password verification, and JWT session handling.
+- **Implemented Functionality**: `POST /api/login` credentials verification with `bcrypt.compare`, `GET /api/me` token validation, client-side route protection, and session logout.
+- **API Endpoints**: `POST /api/login`, `GET /api/me`
+- **Database Table**: `users`
 
----
+### 2. Dashboard Module
 
-# 3. Purchase Request Module
+- **Purpose**: Delivers a central operations overview for procurement metrics.
+- **Implemented Functionality**: Aggregated KPI statistical counters, pending order tracker, low stock alert calculation, recent purchase order table, and inventory overview.
+- **API Endpoint**: `GET /api/dashboard/stats`
+- **Database Tables**: `vendors`, `products`, `purchase_orders`, `inventory`
 
-## Purpose
-Allows employees to create and manage purchase requests.
+### 3. Vendor Management Module
 
-## Features
-- Create purchase requests
-- Edit requests
-- Cancel requests
-- Track request status
+- **Purpose**: Maintains registered supplier directories and contact information.
+- **Implemented Functionality**: Vendor listing displaying contact person, email, phone, GST number, and active status, with client-side real-time search.
+- **API Endpoint**: `GET /api/vendors`
+- **Database Table**: `vendors`
 
----
+### 4. Product Catalog Module
 
-# 4. Approval Management Module
+- **Purpose**: Manages product listings and vendor associations.
+- **Implemented Functionality**: Product directory displaying category, vendor name, unit price, stock quantity, unit of measurement, and availability status.
+- **API Endpoint**: `GET /api/products`
+- **Database Tables**: `products`, `vendors`
 
-## Purpose
-Handles the approval workflow.
+### 5. Purchase Order Module
 
-## Features
-- Manager approval
-- Finance approval
-- Reject requests
-- Approval history
+- **Purpose**: Tracks purchase order lifecycles and totals.
+- **Implemented Functionality**: Purchase order header listing with PO numbers, vendor names, order dates, expected delivery dates, total amounts, and status badges (`Pending`, `Approved`, `Completed`, `Rejected`).
+- **API Endpoint**: `GET /api/purchase-orders`
+- **Database Tables**: `purchase_orders`, `vendors`, `users`
 
----
+### 6. Inventory Module
 
-# 5. Vendor Management Module
+- **Purpose**: Monitors current warehouse stock levels against safety reorder levels.
+- **Implemented Functionality**: Inventory stock list displaying quantity in stock, reorder levels, last updated timestamps, and dynamically computed stock statuses (`In Stock`, `Low Stock`, `Reorder Required`).
+- **API Endpoint**: `GET /api/inventory`
+- **Database Tables**: `inventory`, `products`, `vendors`
 
-## Purpose
-Maintains vendor information.
+### 7. Goods Receipt Module
 
-## Features
-- Add vendors
-- Update vendor details
-- Delete vendors
-- View vendor list
-
----
-
-# 6. Purchase Order Module
-
-## Purpose
-Generates and manages purchase orders.
-
-## Features
-- Generate Purchase Orders
-- View Purchase Orders
-- Update Purchase Orders
-- Print Purchase Orders
+- **Purpose**: Records incoming delivery verifications from vendors.
+- **Implemented Functionality**: Goods receipt listing linking delivery receipts to PO numbers, received dates, receiver personnel, and remarks.
+- **API Endpoint**: `GET /api/goods-receipts`
+- **Database Tables**: `goods_receipts`, `purchase_orders`, `users`
 
 ---
 
-# 7. Inventory Module
+## 3. Future Modules / Enhancements (Review-II Scope)
 
-## Purpose
-Tracks purchased items.
-
-## Features
-- Item records
-- Stock updates
-- Inventory status
-
----
-
-# 8. Reports Module
-
-## Purpose
-Provides procurement reports.
-
-## Features
-- Purchase reports
-- Vendor reports
-- Expense reports
-- Approval reports
-
----
-
-# System Workflow
-
-1. User logs into the system.
-2. Employee submits a purchase request.
-3. Department Manager reviews the request.
-4. Finance Officer verifies the budget.
-5. Procurement Officer selects the vendor.
-6. Purchase Order is generated.
-7. Reports are generated for management.
-
----
-
-# Conclusion
-
-The modular design improves maintainability, scalability, and efficiency while ensuring a structured procurement workflow.
+- **Vendor & Product CRUD Module**: Full create, update, and delete actions for vendor and product management.
+- **Purchase Order Creation Module**: Form builder for generating multi-item purchase orders with itemized price calculation (`purchase_order_items`).
+- **Delivery Logging Module**: Receiving form to record goods receipts and automatically increment `inventory.quantity_in_stock`.
+- **Reports & Analytics Module**: Exportable PDF/Excel procurement summaries, supplier performance metrics, and monthly spending reports.

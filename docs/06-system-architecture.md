@@ -1,150 +1,113 @@
 # System Architecture
 
-## Introduction
+## 1. Introduction
 
-The Purchase Order Management System (POMS) follows a Three-Tier Architecture to ensure scalability, maintainability, security, and clear separation of responsibilities. Each layer performs a specific role and communicates only with the adjacent layer.
-
----
-
-
-## System Architecture Diagram
-
-![Purchase Order Management System Architecture](../diagrams/system-architecture.png)
-
+The Purchase Order Management System (POMS) uses a decoupled client-server architecture following a Three-Tier pattern (Presentation, Business Logic, and Data Layer). Each layer has defined responsibilities and communicates over established REST protocols.
 
 ---
 
-## Architecture Overview
+## 2. System Architecture Overview
 
-The application is divided into three major layers:
-
-1. Presentation Layer (Frontend)
-2. Business Logic Layer (Backend)
-3. Data Layer (Database)
-
-This architecture minimizes coupling between components and makes future maintenance easier.
-
----
-
-## Three-Tier Architecture
-
-### 1. Presentation Layer
-
-The Presentation Layer provides the user interface through which users interact with the system.
-
-**Technology**
-
-- React
-- TypeScript
-- Tailwind CSS
-- Shadcn UI
-
-**Responsibilities**
-
-- Display dashboards and forms
-- Validate basic user input
-- Send API requests
-- Display server responses
+```text
++-----------------------------------------------------------------------+
+|                         PRESENTATION LAYER                            |
+|  Browser  <--->  React 19 + Vite Frontend  <--->  Axios API Client    |
++-----------------------------------------------------------------------+
+                                   |
+                         HTTP / REST API (JSON)
+                                   |
++-----------------------------------------------------------------------+
+|                         BUSINESS LOGIC LAYER                          |
+|  Node.js + Express  <--->  CORS & Auth Middleware  <---> Controllers  |
++-----------------------------------------------------------------------+
+                                   |
+                       mysql2/promise Pool Queries
+                                   |
++-----------------------------------------------------------------------+
+|                             DATA LAYER                                |
+|                 MySQL 8 Database (`purchase_order_db`)                |
++-----------------------------------------------------------------------+
+```
 
 ---
 
-### 2. Business Logic Layer
+## 3. Layer Specifications
 
-The Business Logic Layer processes requests received from the frontend.
+### 1. Presentation Layer (Frontend)
 
-**Technology**
+- **Framework**: React 19 built with Vite
+- **Routing**: React Router 7 (`BrowserRouter`, `Routes`, `Route`, `Navigate`)
+- **State & Context**: `AuthContext` with custom `useAuth` hook and `localStorage` persistence
+- **HTTP Client**: Axios with request/response interceptors (`services/api.js`)
+- **Styling**: Custom CSS Enterprise Design System (`index.css`, `poms.css`)
+- **Icons**: Lucide React
 
-- Node.js
-- Express.js
-- Prisma ORM
+### 2. Business Logic Layer (Backend)
 
-**Responsibilities**
+- **Runtime**: Node.js
+- **Framework**: Express.js
+- **Middleware**:
+  - `cors`: Restricted to `FRONTEND_URL` origin
+  - `express.json()`: Body parser for incoming JSON payloads
+  - `authMiddleware.js`: JWT token extractor and validator
+- **Routing & Controllers**:
+  - `authRoutes.js` / `authController.js`
+  - `dashboardRoutes.js` / `dashboardController.js`
+  - `vendorRoutes.js` / `vendorController.js`
+  - `productRoutes.js` / `productController.js`
+  - `purchaseOrderRoutes.js` / `purchaseOrderController.js`
+  - `inventoryRoutes.js` / `inventoryController.js`
+  - `goodsReceiptRoutes.js` / `goodsReceiptController.js`
 
-- Authenticate users
-- Authorize user roles
-- Validate business rules
-- Process purchase requests
-- Generate purchase orders
-- Handle approvals
-- Communicate with the database
+### 3. Data Layer (Database)
 
----
-
-### 3. Data Layer
-
-The Data Layer stores all application data securely.
-
-**Technology**
-
-- PostgreSQL
-- Prisma ORM
-
-**Stores**
-
-- Users
-- Roles
-- Vendors
-- Products
-- Purchase Requests
-- Purchase Orders
-- Approval Records
-- Audit Logs
+- **Engine**: MySQL 8
+- **Driver**: `mysql2/promise` (Connection Pooling via `config/db.js`)
+- **Database**: `purchase_order_db`
+- **Tables**: `users`, `vendors`, `products`, `purchase_orders`, `purchase_order_items`, `inventory`, `goods_receipts`
 
 ---
 
-## Technology Stack
+## 4. End-to-End Authentication Architecture
 
-| Layer | Technology |
-|--------|------------|
-| Frontend | React, TypeScript, Tailwind CSS, Shadcn UI |
-| Backend | Node.js, Express.js |
-| Database | PostgreSQL |
-| ORM | Prisma |
-| Authentication | JWT |
-| Version Control | Git & GitHub |
-| Deployment | Vercel, Render/Railway |
-
----
-
-## System Components
-
-The system consists of the following major components:
-
-- Authentication Module
-- User Management Module
-- Purchase Request Module
-- Approval Management Module
-- Vendor Management Module
-- Purchase Order Module
-- Reporting Module
-
----
-
-## Data Flow
-
-1. User logs into the application.
-2. React sends requests to the Express API.
-3. Express validates the request.
-4. Business logic is executed.
-5. Prisma communicates with PostgreSQL.
-6. Database returns data.
-7. Express sends the response.
-8. React updates the user interface.
+```text
+User enters email & password on Login page
+                    │
+                    ▼
+          POST /api/login (Axios)
+                    │
+                    ▼
+     Express authController.login()
+                    │
+                    ├── 1. Query users table by email
+                    ├── 2. Verify password via bcrypt.compare()
+                    ├── 3. If invalid -> Return HTTP 401 ("Invalid email or password.")
+                    └── 4. If valid -> Sign JWT token with user id, email, role (8h)
+                    │
+                    ▼
+        Return 200 OK + JWT + User Object
+                    │
+                    ▼
+  Frontend AuthContext stores token & user in localStorage
+                    │
+                    ▼
+  Subsequent Protected Requests include Authorization header:
+          "Authorization: Bearer <JWT_TOKEN>"
+                    │
+                    ▼
+  Backend authMiddleware verifies token & attaches req.user
+```
 
 ---
 
-## Advantages
+## 5. Technology Stack Summary
 
-- Separation of concerns
-- Improved maintainability
-- Better scalability
-- Enhanced security
-- Easier testing
-- Modular development
-- Cleaner codebase
-
----
-
-## Conclusion
-
-The Three-Tier Architecture provides a solid foundation for building a scalable and secure Purchase Order Management System. It enables independent development of the frontend, backend, and database while supporting future enhancements and easier maintenance.
+| Layer | Technology | Version / Tool |
+| --- | --- | --- |
+| Client | React / Vite / React Router | React 19, Vite 8, React Router 7 |
+| Styling & UI | Custom CSS / Lucide React | `poms.css` design system |
+| HTTP Client | Axios | Custom interceptors |
+| Server | Node.js / Express.js | Express 4 |
+| Database Engine | MySQL | MySQL 8 |
+| Database Driver | `mysql2/promise` | Connection pool |
+| Security | `bcryptjs` / `jsonwebtoken` | Salted bcrypt compare, signed JWTs |
