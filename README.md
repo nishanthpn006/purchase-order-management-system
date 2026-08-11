@@ -10,7 +10,6 @@ An enterprise-grade procurement and purchase order management web application de
 - [Key Features](#-key-features)
 - [Tech Stack](#-tech-stack)
 - [Database Schema](#-database-schema)
-- [System Architecture & Workflow](#-system-architecture--workflow)
 - [Getting Started](#-getting-started)
 - [API Documentation](#-api-documentation)
 - [Project Structure](#-project-structure)
@@ -27,18 +26,21 @@ Manual procurement workflows reliant on static spreadsheets and paper approvals 
 ## ✨ Key Features
 
 ### 🔐 Authentication & Security
+
 - **JWT Authorization**: Token-based security signed by Express backend with 8-hour session expiration.
 - **Protected Routes**: React Router guards ensuring unauthenticated visitors are redirected to login.
 - **Role Awareness**: Decoded user session containing role levels (`Admin`, `Manager`, `Employee`).
 - **Global Interceptors**: Automatic bearer token injection on outgoing Axios requests with instant 401 redirect handling.
 
 ### 📊 Operations Dashboard
+
 - **Live KPI Analytics**: Aggregated real-time metrics for Total Vendors, Total Products, Total Purchase Orders, and Inventory Stock.
 - **Pending & Low-Stock Alerts**: Visual counters highlighting orders awaiting approval and items requiring reorders.
 - **Recent PO Activity**: Tabular overview of recent procurement orders with status badges (`Pending`, `Approved`, `Completed`, `Rejected`).
 - **Inventory Stock Summary**: Real-time snapshot of product quantities and reorder thresholds.
 
 ### 🏢 Core Enterprise Modules
+
 - **Vendors Management**: Supplier directory tracking company details, contact persons, emails, phones, GST numbers, and active status.
 - **Products Catalog**: Comprehensive product list mapped to vendors with unit prices, units of measurement, and availability status.
 - **Purchase Orders**: Lifecycle tracking of orders including order dates, expected delivery dates, total amounts, and status badges.
@@ -50,6 +52,7 @@ Manual procurement workflows reliant on static spreadsheets and paper approvals 
 ## 🛠 Tech Stack
 
 ### Frontend
+
 - **Framework**: React 19 + Vite
 - **Routing**: React Router 7
 - **HTTP Client**: Axios with custom interceptors
@@ -57,6 +60,7 @@ Manual procurement workflows reliant on static spreadsheets and paper approvals 
 - **Styling**: Custom CSS Enterprise Design System with CSS variables and responsive breakpoints
 
 ### Backend
+
 - **Runtime**: Node.js
 - **Framework**: Express.js
 - **Database Driver**: `mysql2/promise` (Connection Pooling)
@@ -64,6 +68,7 @@ Manual procurement workflows reliant on static spreadsheets and paper approvals 
 - **Environment**: `dotenv`, CORS enabled
 
 ### Database
+
 - **Engine**: MySQL 8
 - **Database Name**: `purchase_order_db`
 
@@ -73,7 +78,7 @@ Manual procurement workflows reliant on static spreadsheets and paper approvals 
 
 The system connects to `purchase_order_db` consisting of 7 relational tables:
 
-```
+```text
 +---------------+       +------------------+       +---------------+
 |    users      |       |     vendors      |       |   products    |
 +---------------+       +------------------+       +---------------+
@@ -117,11 +122,13 @@ The system connects to `purchase_order_db` consisting of 7 relational tables:
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Node.js (v18+)
 - MySQL Server (v8.0+)
 - npm or yarn
 
 ### 1. Database Setup
+
 Import and execute the SQL schema in MySQL Workbench or terminal to create `purchase_order_db`:
 
 ```sql
@@ -132,6 +139,7 @@ USE purchase_order_db;
 Ensure sample data for `users`, `vendors`, `products`, `purchase_orders`, `inventory`, and `goods_receipts` is populated.
 
 ### 2. Backend Installation & Setup
+
 Navigate to the backend directory:
 
 ```bash
@@ -158,6 +166,7 @@ node src/server.js
 ```
 
 ### 3. Frontend Installation & Setup
+
 Navigate to the frontend directory:
 
 ```bash
@@ -178,10 +187,12 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 ## 📡 API Documentation
 
 ### Authentication
+
 - `POST /api/login` - Authenticate user & return JWT token
 - `GET /api/me` - Validate session & return decoded user info
 
 ### Operations & Dashboard
+
 - `GET /api/dashboard/stats` - Returns aggregated KPI counts
 - `GET /api/vendors` - List all registered vendors
 - `GET /api/products` - List catalog products with vendor details
@@ -193,7 +204,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## 📁 Project Structure
 
-```
+```text
 purchase-order-management-system/
 ├── backend/
 │   ├── src/
