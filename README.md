@@ -1,17 +1,17 @@
-# 📦 Purchase Order Management System (POMS)
+# Purchase Order Management System (POMS)
 
 > An enterprise-grade procurement and purchase order management web application connecting React, Express, and MySQL.
 
 ---
 
-## 🔗 Demo & Video Links
+## Demo & Video Links
 
 - **Live Demo**: Not deployed yet — planned for Review-II (Local development only for Review-I)
 - **Video Demo**: To be added for Review-II
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Architecture Diagram](#architecture-diagram)
@@ -30,19 +30,19 @@
 
 ---
 
-## 🎯 Overview
+## Overview
 
 Manual procurement workflows reliant on static spreadsheets and paper approvals lead to operational bottlenecks, misplaced orders, and untracked inventory levels. **POMS** addresses these challenges through a centralized, role-aware management system that connects procurement actions directly to live inventory and database records.
 
 ---
 
-## 🏗 Architecture Diagram
+## Architecture Diagram
 
 ![System Architecture](diagrams/system-architecture.png)
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 ### Frontend
 
@@ -67,23 +67,23 @@ Manual procurement workflows reliant on static spreadsheets and paper approvals 
 
 ---
 
-## ✨ Features
+## Features
 
-### 🔐 Authentication & Security
+### Authentication & Security
 
 - **JWT Authorization**: Token-based security signed by Express backend with 8-hour session expiration.
 - **Bcrypt Password Security**: Mandatory `bcrypt.compare` verification for login authentication.
 - **Protected Routes**: Client-side route guards ensuring unauthenticated visitors are redirected to login.
 - **Global Interceptors**: Automatic bearer token injection on outgoing Axios requests with instant 401 redirect handling.
 
-### 📊 Operations Dashboard
+### Operations Dashboard
 
 - **Live KPI Analytics**: Aggregated real-time metrics for Total Vendors, Total Products, Total Purchase Orders, and Inventory Stock.
 - **Pending & Low-Stock Alerts**: Visual counters highlighting orders awaiting approval and items requiring reorders.
 - **Recent PO Activity**: Tabular overview of recent procurement orders with status badges (`Pending`, `Approved`, `Completed`, `Rejected`).
 - **Inventory Stock Summary**: Real-time snapshot of product quantities and reorder thresholds.
 
-### 🏢 Core Enterprise Modules
+### Core Enterprise Modules
 
 - **Vendors Management**: Supplier directory tracking company details, contact persons, emails, phones, GST numbers, and active status (`GET /api/vendors`).
 - **Products Catalog**: Comprehensive product list mapped to vendors with unit prices, units of measurement, and availability status (`GET /api/products`).
@@ -93,13 +93,13 @@ Manual procurement workflows reliant on static spreadsheets and paper approvals 
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
 > Note: UI screenshots will be captured and documented in the repository for Review-II.
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 Follow these steps to set up and run POMS locally:
 
@@ -148,7 +148,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
-## ⚙️ Environment Variables
+## Environment Variables
 
 The backend relies on the following environment variables defined in `.env`:
 
@@ -165,7 +165,7 @@ FRONTEND_URL=http://localhost:5173
 
 ---
 
-## 📡 API Documentation
+## API Documentation
 
 > Note: Swagger/OpenAPI documentation is planned for Review-II.
 
@@ -185,7 +185,7 @@ FRONTEND_URL=http://localhost:5173
 
 ---
 
-## 🧪 Running Tests
+## Running Tests
 
 For Review-I, verification is conducted through API smoke scripts and manual frontend integration testing:
 
@@ -194,13 +194,13 @@ For Review-I, verification is conducted through API smoke scripts and manual fro
 
 ---
 
-## 🌐 Deployment
+## Deployment
 
 Currently configured for **Local Development**. Production deployment (Render/Vercel) is scheduled for Review-II.
 
 ---
 
-## 📁 Folder Structure
+## Folder Structure
 
 ```text
 purchase-order-management-system/
@@ -236,7 +236,7 @@ purchase-order-management-system/
 
 ---
 
-## 🔮 Future Enhancements
+## Future Enhancements
 
 - **Vendor & Product CRUD**: Interactive creation, updating, and deactivation of vendors and products.
 - **Purchase Order Creation Builder**: Multi-item PO builder form with automatic price totals.
@@ -246,13 +246,13 @@ purchase-order-management-system/
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the **MIT License**.
 
 ---
 
-## 👨‍💻 Author & Contact
+## Author & Contact
 
 **Nishanth P N**  
 Pre-Final Year B.Tech Information Technology Student  
