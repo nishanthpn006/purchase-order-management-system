@@ -5,6 +5,17 @@ All notable changes to the Purchase Order Management System (POMS) project will 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - Review-II (In Progress)
+
+### Planned
+- **Purchase Order Creation**: Full PO creation workflow with vendor and product selection, quantity input, and status tracking.
+- **Approval Workflow**: Role-based PO approval and rejection flow for managers.
+- **Goods Receipt Processing**: Record and validate incoming deliveries against open purchase orders.
+- **Inventory Auto-Update**: Automatically update inventory stock levels upon goods receipt confirmation.
+- **Reports & Analytics**: Summary reports for procurement spend, vendor performance, and inventory turnover.
+
+---
+
 ## [0.1.0] - 2026-08-11 (Review-I MVP)
 
 ### Added
