@@ -36,4 +36,21 @@ const verifyToken = (req, res, next) => {
     }
 };
 
-module.exports = { verifyToken };
+/**
+ * Middleware: authorizeRoles
+ * Restricts access to users with specified roles
+ */
+const authorizeRoles = (...allowedRoles) => {
+    return (req, res, next) => {
+        if (!req.user || !allowedRoles.includes(req.user.role)) {
+            return res.status(403).json({
+                success: false,
+                message: "Access forbidden: insufficient permissions for this action.",
+            });
+        }
+        next();
+    };
+};
+
+module.exports = { verifyToken, authorizeRoles };
+

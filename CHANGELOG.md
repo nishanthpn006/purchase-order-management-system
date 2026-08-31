@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - Review-II (In Progress)
 
+### Added
+- **Role-Based Access Control (RBAC)**: Added `authorizeRoles` middleware in `authMiddleware.js` for route-level role authorization (`Admin`, `Manager`, `Employee`).
+- **Purchase Order Itemized Details**: Added `GET /api/purchase-orders/:id` endpoint returning full PO metadata and joined item list.
+- **Transactional PO Creation**: Added `POST /api/purchase-orders` endpoint with MySQL transaction support, unique PO number generation (`PO-YYYYMMDD-XXXX`), and item total calculations.
+- **Approval & Status Workflow**: Added `PATCH /api/purchase-orders/:id/status` endpoint restricted to `Admin` and `Manager` roles.
+
 ### Planned
-- **Purchase Order Creation**: Full PO creation workflow with vendor and product selection, quantity input, and status tracking.
-- **Approval Workflow**: Role-based PO approval and rejection flow for managers.
 - **Goods Receipt Processing**: Record and validate incoming deliveries against open purchase orders.
 - **Inventory Auto-Update**: Automatically update inventory stock levels upon goods receipt confirmation.
 - **Reports & Analytics**: Summary reports for procurement spend, vendor performance, and inventory turnover.
