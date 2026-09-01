@@ -18,7 +18,13 @@ The Purchase Order Management System (POMS) uses a MySQL 8 relational database (
 
 ---
 
-## 3. Detailed Entity Schema
+## 3. Entity-Relationship (ER) Diagram
+
+![ER Diagram](../diagrams/er-diagram.png)
+
+---
+
+## 4. Detailed Entity Schema
 
 ### 1. `users` Table
 
@@ -109,7 +115,7 @@ Tracks delivery verification receipts.
 
 ---
 
-## 4. Foreign Key Relational Summary
+## 5. Foreign Key Relational Summary
 
 | Child Table | Foreign Key Field | Parent Table | Parent Key | Constraint Rule |
 | --- | --- | --- | --- | --- |
