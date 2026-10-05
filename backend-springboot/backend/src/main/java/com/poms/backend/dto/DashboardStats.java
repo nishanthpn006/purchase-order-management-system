@@ -1,16 +1,32 @@
 package com.poms.backend.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * Response for GET /api/dashboard/stats
  */
+@Schema(description = "Aggregated procurement KPIs and operational statistics")
 public class DashboardStats {
 
+    @Schema(description = "Total number of purchase orders", example = "25")
     private long totalPurchaseOrders;
+
+    @Schema(description = "Total purchase orders in Pending status", example = "5")
     private long pendingOrders;
+
+    @Schema(description = "Total purchase orders in Approved status", example = "12")
     private long approvedOrders;
+
+    @Schema(description = "Total purchase orders in Received status", example = "8")
     private long receivedOrders;
+
+    @Schema(description = "Total registered supplier vendors", example = "10")
     private long totalVendors;
+
+    @Schema(description = "Total products cataloged in the system", example = "50")
     private long totalProducts;
+
+    @Schema(description = "Count of products where current stock is at or below reorder level", example = "3")
     private long lowStockItems;
 
     public DashboardStats() {
