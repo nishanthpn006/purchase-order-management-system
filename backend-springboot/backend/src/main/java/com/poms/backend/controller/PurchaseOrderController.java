@@ -1,5 +1,6 @@
 package com.poms.backend.controller;
 
+import com.poms.backend.config.OpenApiConfig;
 import com.poms.backend.dto.CreatePurchaseOrderRequest;
 import com.poms.backend.dto.UpdateStatusRequest;
 import com.poms.backend.entity.PurchaseOrder;
@@ -10,9 +11,17 @@ import com.poms.backend.security.JwtUtil;
 import com.poms.backend.service.PurchaseOrderItemService;
 import com.poms.backend.service.PurchaseOrderService;
 import com.poms.backend.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -24,6 +33,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/purchase-orders")
+@Tag(name = "Purchase Orders", description = "Purchase order creation, lifecycle management, and status approval workflows")
 public class PurchaseOrderController {
 
     private final PurchaseOrderService purchaseOrderService;
@@ -46,6 +56,19 @@ public class PurchaseOrderController {
      * Returns all purchase orders. Requires authentication.
      */
     @GetMapping
+    @Operation(
+            summary = "List all purchase orders",
+            description = "Protected endpoint. Retrieves a list of all purchase orders across all statuses. Allowed roles: ADMIN, MANAGER, EMPLOYEE."
+    )
+    @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "List of purchase orders retrieved successfully",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = PurchaseOrder.class)))
+            ),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Missing or invalid JWT Bearer token")
+    })
     public ResponseEntity<List<PurchaseOrder>> getAllPurchaseOrders() {
         return ResponseEntity.ok(purchaseOrderService.getAllPurchaseOrders());
     }
@@ -55,7 +78,22 @@ public class PurchaseOrderController {
      * Returns a single purchase order with its line items.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<?> getPurchaseOrderById(@PathVariable Integer id) {
+    @Operation(
+            summary = "Get purchase order by ID with line items",
+            description = "Protected endpoint. Returns complete purchase order header details together with its line items (composite key: purchase_order_id + product_id). Allowed roles: ADMIN, MANAGER, EMPLOYEE."
+    )
+    @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Purchase order and line items found and returned successfully"
+            ),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Missing or invalid JWT Bearer token"),
+            @ApiResponse(responseCode = "404", description = "Purchase order not found with specified ID")
+    })
+    public ResponseEntity<?> getPurchaseOrderById(
+            @Parameter(description = "Primary key ID of the purchase order", required = true, example = "1")
+            @PathVariable Integer id) {
         Optional<PurchaseOrder> poOpt = purchaseOrderService.getPurchaseOrderById(id);
         if (poOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -87,9 +125,23 @@ public class PurchaseOrderController {
      * Allowed roles: Admin, Manager, Employee.
      */
     @PostMapping
+    @Operation(
+            summary = "Create a new purchase order",
+            description = "Protected endpoint. Creates a new purchase order with line items. The createdBy user is automatically identified from the JWT Bearer token. Allowed roles: ADMIN, MANAGER, EMPLOYEE."
+    )
+    @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Purchase order created successfully",
+                    content = @Content(schema = @Schema(implementation = PurchaseOrder.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Missing required fields (vendorId, orderDate, totalAmount)"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Missing or invalid JWT Bearer token")
+    })
     public ResponseEntity<?> createPurchaseOrder(
             @RequestBody CreatePurchaseOrderRequest request,
-            @RequestHeader("Authorization") String authHeader) {
+            @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
 
         // Basic validation
         if (request.getVendorId() == null || request.getOrderDate() == null
@@ -145,8 +197,27 @@ public class PurchaseOrderController {
      * Allowed roles: Admin, Manager only (enforced in SecurityConfig).
      */
     @PatchMapping("/{id}/status")
-    public ResponseEntity<?> updateStatus(@PathVariable Integer id,
-                                          @RequestBody UpdateStatusRequest request) {
+    @Operation(
+            summary = "Update purchase order status",
+            description = "Protected endpoint. Updates the status (Pending, Approved, Rejected, Completed) of a purchase order. "
+                    + "ROLE RESTRICTION: Only users with ADMIN or MANAGER role are authorized. Users with EMPLOYEE role will receive HTTP 403 Forbidden."
+    )
+    @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Purchase order status updated successfully",
+                    content = @Content(schema = @Schema(implementation = PurchaseOrder.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Missing or blank status field"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Missing or invalid JWT Bearer token"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - Only ADMIN and MANAGER roles can update PO status"),
+            @ApiResponse(responseCode = "404", description = "Purchase order not found with specified ID")
+    })
+    public ResponseEntity<?> updateStatus(
+            @Parameter(description = "Primary key ID of the purchase order to update", required = true, example = "1")
+            @PathVariable Integer id,
+            @RequestBody UpdateStatusRequest request) {
         if (request.getStatus() == null || request.getStatus().isBlank()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "status field is required"));

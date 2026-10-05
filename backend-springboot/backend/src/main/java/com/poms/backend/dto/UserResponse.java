@@ -1,15 +1,27 @@
 package com.poms.backend.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * Safe user profile — password is excluded.
  * Used for GET /api/me response.
  */
+@Schema(description = "Safe user profile representation without credentials")
 public class UserResponse {
 
+    @Schema(description = "Unique user identifier", example = "1")
     private Integer id;
+
+    @Schema(description = "User full name", example = "Nishanth PN")
     private String fullName;
+
+    @Schema(description = "User email address", example = "nishanth@poms.com")
     private String email;
+
+    @Schema(description = "User role in the system (Admin, Manager, Employee)", example = "Admin")
     private String role;
+
+    @Schema(description = "Account status (Active, Inactive)", example = "Active")
     private String status;
 
     public UserResponse() {

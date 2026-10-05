@@ -1,11 +1,19 @@
 package com.poms.backend.controller;
 
+import com.poms.backend.config.OpenApiConfig;
 import com.poms.backend.dto.DashboardStats;
 import com.poms.backend.entity.Inventory;
 import com.poms.backend.repository.InventoryRepository;
 import com.poms.backend.repository.ProductRepository;
 import com.poms.backend.repository.PurchaseOrderRepository;
 import com.poms.backend.repository.VendorRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,6 +23,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/dashboard")
+@Tag(name = "Dashboard", description = "Procurement operations overview and KPI statistics")
 public class DashboardController {
 
     private final PurchaseOrderRepository purchaseOrderRepository;
@@ -37,6 +46,19 @@ public class DashboardController {
      * Returns summary statistics for the dashboard.
      */
     @GetMapping("/stats")
+    @Operation(
+            summary = "Get procurement dashboard statistics",
+            description = "Protected endpoint. Returns aggregated counts of total purchase orders, pending orders, approved orders, received orders, total vendors, total products, and low stock inventory items. Allowed roles: ADMIN, MANAGER, EMPLOYEE."
+    )
+    @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Dashboard metrics calculated and returned successfully",
+                    content = @Content(schema = @Schema(implementation = DashboardStats.class))
+            ),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Missing or invalid JWT Bearer token")
+    })
     public ResponseEntity<DashboardStats> getStats() {
         DashboardStats stats = new DashboardStats();
 

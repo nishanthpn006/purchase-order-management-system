@@ -110,6 +110,16 @@ public class SecurityConfig {
                 // Public endpoint: POST /api/login requires no token
                 .requestMatchers(HttpMethod.POST, "/api/login").permitAll()
                 .requestMatchers("/error").permitAll()
+                // Public Swagger & OpenAPI endpoints
+                .requestMatchers(
+                    "/v3/api-docs",
+                    "/v3/api-docs/**",
+                    "/swagger-ui.html",
+                    "/swagger-ui/**",
+                    "/swagger-resources",
+                    "/swagger-resources/**",
+                    "/webjars/**"
+                ).permitAll()
                 // Status update restricted to Admin and Manager roles
                 .requestMatchers(HttpMethod.PATCH, "/api/purchase-orders/*/status")
                     .hasAnyRole("ADMIN", "MANAGER")
