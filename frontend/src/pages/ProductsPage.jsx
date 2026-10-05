@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, PackagePlus, RefreshCw } from "lucide-react";
-import { getProducts } from "../services/api";
+import { getProducts, getVendors } from "../services/api";
 import StatusBadge from "../components/StatusBadge";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
@@ -18,10 +18,40 @@ function ProductsPage() {
   const [search, setSearch]     = useState("");
 
   const load = async () => {
-    setLoading(true); setError("");
+    setLoading(true);
+    setError("");
     try {
-      const res = await getProducts();
-      setProducts(res.data.data);
+      const [prodRes, vendRes] = await Promise.all([
+        getProducts(),
+        getVendors().catch(() => ({ data: [] })),
+      ]);
+
+      const rawProds = Array.isArray(prodRes.data)
+        ? prodRes.data
+        : (prodRes.data?.data || []);
+      const rawVends = Array.isArray(vendRes.data)
+        ? vendRes.data
+        : (vendRes.data?.data || []);
+
+      const vendorsMap = {};
+      rawVends.forEach((v) => {
+        vendorsMap[v.id] = v.vendorName || v.vendor_name;
+      });
+
+      const normalized = rawProds.map((p) => ({
+        id: p.id,
+        product_name: p.productName || p.product_name || "—",
+        category: p.category ?? "—",
+        description: p.description ?? "—",
+        vendor_id: p.vendorId,
+        vendor_name: p.vendor_name || vendorsMap[p.vendorId] || (p.vendorId ? `Vendor #${p.vendorId}` : "—"),
+        unit_price: p.unitPrice ?? p.unit_price ?? 0,
+        stock_quantity: p.stockQuantity ?? p.stock_quantity ?? 0,
+        unit: p.unit ?? "—",
+        status: p.status || "Available",
+      }));
+
+      setProducts(normalized);
     } catch {
       setError("Unable to load product information.");
     } finally {
@@ -58,7 +88,7 @@ function ProductsPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button className="btn btn-ghost btn-sm" onClick={load} title="Refresh">
+            <button className="btn btn-ghost btn-sm" onClick={() => { setLoading(true); load(); }} title="Refresh">
               <RefreshCw size={14} />
             </button>
             <button className="btn btn-primary btn-sm">
@@ -73,7 +103,7 @@ function ProductsPage() {
         {error ? (
           <div className="empty-state">
             <p style={{ color: "var(--danger)", fontSize: "0.88rem" }}>{error}</p>
-            <button className="btn btn-ghost btn-sm" onClick={load} style={{ marginTop: 8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => { setLoading(true); load(); }} style={{ marginTop: 8 }}>
               <RefreshCw size={13} /> Retry
             </button>
           </div>

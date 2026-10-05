@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
-import api from "../services/api";
+import { loginApi, getMe } from "../services/api";
 import "../styles/poms.css";
 
 function Login() {
@@ -23,12 +23,43 @@ function Login() {
     setError("");
     setLoading(true);
     try {
-      const response = await api.post("/login", { email, password });
-      const { token, user } = response.data;
-      login(token, user);
+      const response = await loginApi({ email: email.trim(), password });
+      const token = response.data?.token;
+      if (!token) {
+        throw new Error("Authentication failed: No token received from server.");
+      }
+
+      // Temporarily store token so getMe() request interceptor uses it
+      localStorage.setItem("poms_token", token);
+
+      let userData = null;
+      try {
+        const meRes = await getMe();
+        userData = meRes.data;
+      } catch {
+        userData = { email: email.trim(), role: "User" };
+      }
+
+      const normalizedUser = {
+        id: userData.id,
+        name: userData.fullName || userData.name || email.trim().split("@")[0],
+        fullName: userData.fullName || userData.name,
+        email: userData.email || email.trim(),
+        role: userData.role || "User",
+        status: userData.status || "Active",
+      };
+
+      login(token, normalizedUser);
       navigate("/dashboard", { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message ?? "Invalid email or password.");
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        (err.response?.status === 401 ? "Invalid email or password." : null) ||
+        (err.response?.status === 403 ? "Access forbidden. Please check your credentials." : null) ||
+        err.message ||
+        "Unable to connect to server. Please try again.";
+      setError(msg);
     } finally {
       setLoading(false);
     }

@@ -4,20 +4,19 @@ import {
   AlertTriangle, Clock, ShoppingBag,
 } from "lucide-react";
 import { useAuth } from "../context/useAuth";
-import { getDashboardStats, getPurchaseOrders, getInventory } from "../services/api";
+import {
+  getDashboardStats,
+  getPurchaseOrders,
+  getInventory,
+  getProducts,
+  getVendors,
+} from "../services/api";
 import StatusBadge from "../components/StatusBadge";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
 import "../styles/poms.css";
 
 /* ── Helpers ─────────────────────────────────────────────── */
-function fmt(date) {
-  if (!date) return "—";
-  return new Date(date).toLocaleDateString("en-IN", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
-}
-
 function fmtCurrency(amount) {
   if (amount == null) return "—";
   return "₹" + Number(amount).toLocaleString("en-IN", { minimumFractionDigits: 2 });
@@ -49,23 +48,74 @@ function KPICard({ icon: Icon, iconClass, value, label, desc, loading }) {
 function Dashboard() {
   const { user } = useAuth();
 
-  const [stats, setStats]       = useState(null);
-  const [orders, setOrders]     = useState([]);
+  const [stats, setStats]         = useState(null);
+  const [orders, setOrders]       = useState([]);
   const [inventory, setInventory] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState("");
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState("");
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [statsRes, ordersRes, invRes] = await Promise.all([
+        const [statsRes, ordersRes, invRes, prodRes, vendRes] = await Promise.all([
           getDashboardStats(),
           getPurchaseOrders(),
           getInventory(),
+          getProducts().catch(() => ({ data: [] })),
+          getVendors().catch(() => ({ data: [] })),
         ]);
-        setStats(statsRes.data.data);
-        setOrders(ordersRes.data.data.slice(0, 5));      // latest 5
-        setInventory(invRes.data.data.slice(0, 5));       // top 5
+
+        const rawStats = statsRes.data?.data || statsRes.data || {};
+        const rawOrders = Array.isArray(ordersRes.data)
+          ? ordersRes.data
+          : (ordersRes.data?.data || []);
+        const rawInv = Array.isArray(invRes.data)
+          ? invRes.data
+          : (invRes.data?.data || []);
+        const rawProds = Array.isArray(prodRes.data)
+          ? prodRes.data
+          : (prodRes.data?.data || []);
+        const rawVends = Array.isArray(vendRes.data)
+          ? vendRes.data
+          : (vendRes.data?.data || []);
+
+        const vendorsMap = {};
+        rawVends.forEach((v) => {
+          vendorsMap[v.id] = v.vendorName || v.vendor_name;
+        });
+
+        const productsMap = {};
+        rawProds.forEach((p) => {
+          productsMap[p.id] = p.productName || p.product_name;
+        });
+
+        const normalizedStats = {
+          total_vendors: rawStats.totalVendors ?? rawStats.total_vendors ?? rawVends.length,
+          total_products: rawStats.totalProducts ?? rawStats.total_products ?? rawProds.length,
+          total_orders: rawStats.totalPurchaseOrders ?? rawStats.total_orders ?? rawOrders.length,
+          pending_orders: rawStats.pendingOrders ?? rawStats.pending_orders ?? 0,
+          total_inventory: rawStats.totalProducts ?? rawStats.total_inventory ?? rawInv.length,
+          low_stock: rawStats.lowStockItems ?? rawStats.low_stock ?? 0,
+        };
+
+        const normalizedOrders = rawOrders.slice(0, 5).map((po) => ({
+          id: po.id,
+          po_number: po.poNumber || po.po_number || `PO-${po.id}`,
+          vendor_name: po.vendor_name || vendorsMap[po.vendorId] || `Vendor #${po.vendorId || "—"}`,
+          total_amount: po.totalAmount ?? po.total_amount,
+          status: po.status,
+        }));
+
+        const normalizedInv = rawInv.slice(0, 5).map((item) => ({
+          id: item.id,
+          product_name: item.product_name || productsMap[item.productId] || `Product #${item.productId || "—"}`,
+          quantity_in_stock: item.quantityInStock ?? item.quantity_in_stock ?? 0,
+          reorder_level: item.reorderLevel ?? item.reorder_level ?? 0,
+        }));
+
+        setStats(normalizedStats);
+        setOrders(normalizedOrders);
+        setInventory(normalizedInv);
       } catch {
         setError("Unable to load dashboard data. Please refresh the page.");
       } finally {
@@ -80,7 +130,7 @@ function Dashboard() {
       {/* Welcome banner */}
       <div className="welcome-banner">
         <div className="welcome-text">
-          <h2>Welcome back, {user?.name ?? "Administrator"} 👋</h2>
+          <h2>Welcome back, {user?.name || user?.fullName || "Administrator"} 👋</h2>
           <p>Here&apos;s an overview of your procurement operations.</p>
         </div>
         <div className="welcome-icon">
