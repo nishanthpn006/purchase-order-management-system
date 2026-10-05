@@ -92,6 +92,15 @@ public class SecurityConfig {
             // CSRF must be disabled for stateless REST APIs that use JWT.
             .csrf(AbstractHttpConfigurer::disable)
 
+            // Return 401 Unauthorized for unauthenticated requests or invalid tokens
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication required\"}");
+                })
+            )
+
             // Stateless sessions — no HTTP session is created or used
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
