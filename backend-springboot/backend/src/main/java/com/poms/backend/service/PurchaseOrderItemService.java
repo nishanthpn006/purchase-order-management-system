@@ -25,6 +25,10 @@ public class PurchaseOrderItemService {
         return purchaseOrderItemRepository.findById(id);
     }
 
+    public List<PurchaseOrderItem> getItemsByPurchaseOrderId(Integer purchaseOrderId) {
+        return purchaseOrderItemRepository.findByIdPurchaseOrderId(purchaseOrderId);
+    }
+
     public PurchaseOrderItem savePurchaseOrderItem(PurchaseOrderItem item) {
         return purchaseOrderItemRepository.save(item);
     }
