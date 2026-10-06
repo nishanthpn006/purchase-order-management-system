@@ -21,33 +21,50 @@ function VendorsPage() {
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [isDetailOpen, setIsDetailOpen]     = useState(false);
   const [detailLoading, setDetailLoading]   = useState(false);
+  const [refreshKey, setRefreshKey]         = useState(0);
 
-  const load = async () => {
+  const handleRefresh = () => {
     setLoading(true);
     setError("");
-    try {
-      const res = await getVendors();
-      const raw = Array.isArray(res.data) ? res.data : (res.data?.data || []);
-      const normalized = raw.map((v) => ({
-        id: v.id,
-        vendor_name: v.vendorName || v.vendor_name || "—",
-        contact_person: v.contactPerson || v.contact_person || null,
-        email: v.email || null,
-        phone: v.phone || null,
-        address: v.address || null,
-        gst_number: v.gstNumber || v.gst_number || null,
-        status: v.status || "Active",
-        created_at: v.createdAt || v.created_at || null,
-      }));
-      setVendors(normalized);
-    } catch {
-      setError("Unable to load vendor information.");
-    } finally {
-      setLoading(false);
-    }
+    setRefreshKey((k) => k + 1);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    let ignore = false;
+    const load = async () => {
+      try {
+        const res = await getVendors();
+        const raw = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        const normalized = raw.map((v) => ({
+          id: v.id,
+          vendor_name: v.vendorName || v.vendor_name || "—",
+          contact_person: v.contactPerson || v.contact_person || null,
+          email: v.email || null,
+          phone: v.phone || null,
+          address: v.address || null,
+          gst_number: v.gstNumber || v.gst_number || null,
+          status: v.status || "Active",
+          created_at: v.createdAt || v.created_at || null,
+        }));
+        if (!ignore) {
+          setVendors(normalized);
+        }
+      } catch {
+        if (!ignore) {
+          setError("Unable to load vendor information.");
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    };
+
+    load();
+    return () => {
+      ignore = true;
+    };
+  }, [refreshKey]);
 
   const handleOpenDetail = async (vendorId) => {
     setIsDetailOpen(true);
@@ -101,7 +118,7 @@ function VendorsPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => { setLoading(true); load(); }} title="Refresh">
+            <button className="btn btn-ghost btn-sm" onClick={handleRefresh} title="Refresh">
               <RefreshCw size={14} />
             </button>
             <button className="btn btn-primary btn-sm">
@@ -116,7 +133,7 @@ function VendorsPage() {
         {error ? (
           <div className="empty-state">
             <p style={{ color: "var(--danger)", fontSize: "0.88rem" }}>{error}</p>
-            <button className="btn btn-ghost btn-sm" onClick={() => { setLoading(true); load(); }} style={{ marginTop: 8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={handleRefresh} style={{ marginTop: 8 }}>
               <RefreshCw size={13} /> Retry
             </button>
           </div>

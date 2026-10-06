@@ -16,50 +16,67 @@ function ProductsPage() {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState("");
   const [search, setSearch]     = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const load = async () => {
+  const handleRefresh = () => {
     setLoading(true);
     setError("");
-    try {
-      const [prodRes, vendRes] = await Promise.all([
-        getProducts(),
-        getVendors().catch(() => ({ data: [] })),
-      ]);
-
-      const rawProds = Array.isArray(prodRes.data)
-        ? prodRes.data
-        : (prodRes.data?.data || []);
-      const rawVends = Array.isArray(vendRes.data)
-        ? vendRes.data
-        : (vendRes.data?.data || []);
-
-      const vendorsMap = {};
-      rawVends.forEach((v) => {
-        vendorsMap[v.id] = v.vendorName || v.vendor_name;
-      });
-
-      const normalized = rawProds.map((p) => ({
-        id: p.id,
-        product_name: p.productName || p.product_name || "—",
-        category: p.category ?? "—",
-        description: p.description ?? "—",
-        vendor_id: p.vendorId,
-        vendor_name: p.vendor_name || vendorsMap[p.vendorId] || (p.vendorId ? `Vendor #${p.vendorId}` : "—"),
-        unit_price: p.unitPrice ?? p.unit_price ?? 0,
-        stock_quantity: p.stockQuantity ?? p.stock_quantity ?? 0,
-        unit: p.unit ?? "—",
-        status: p.status || "Available",
-      }));
-
-      setProducts(normalized);
-    } catch {
-      setError("Unable to load product information.");
-    } finally {
-      setLoading(false);
-    }
+    setRefreshKey((k) => k + 1);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    let ignore = false;
+    const load = async () => {
+      try {
+        const [prodRes, vendRes] = await Promise.all([
+          getProducts(),
+          getVendors().catch(() => ({ data: [] })),
+        ]);
+
+        const rawProds = Array.isArray(prodRes.data)
+          ? prodRes.data
+          : (prodRes.data?.data || []);
+        const rawVends = Array.isArray(vendRes.data)
+          ? vendRes.data
+          : (vendRes.data?.data || []);
+
+        const vendorsMap = {};
+        rawVends.forEach((v) => {
+          vendorsMap[v.id] = v.vendorName || v.vendor_name;
+        });
+
+        const normalized = rawProds.map((p) => ({
+          id: p.id,
+          product_name: p.productName || p.product_name || "—",
+          category: p.category ?? "—",
+          description: p.description ?? "—",
+          vendor_id: p.vendorId,
+          vendor_name: p.vendor_name || vendorsMap[p.vendorId] || (p.vendorId ? `Vendor #${p.vendorId}` : "—"),
+          unit_price: p.unitPrice ?? p.unit_price ?? 0,
+          stock_quantity: p.stockQuantity ?? p.stock_quantity ?? 0,
+          unit: p.unit ?? "—",
+          status: p.status || "Available",
+        }));
+
+        if (!ignore) {
+          setProducts(normalized);
+        }
+      } catch {
+        if (!ignore) {
+          setError("Unable to load product information.");
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    };
+
+    load();
+    return () => {
+      ignore = true;
+    };
+  }, [refreshKey]);
 
   const filtered = products.filter(
     (p) =>
@@ -88,7 +105,7 @@ function ProductsPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => { setLoading(true); load(); }} title="Refresh">
+            <button className="btn btn-ghost btn-sm" onClick={handleRefresh} title="Refresh">
               <RefreshCw size={14} />
             </button>
             <button className="btn btn-primary btn-sm">
@@ -103,7 +120,7 @@ function ProductsPage() {
         {error ? (
           <div className="empty-state">
             <p style={{ color: "var(--danger)", fontSize: "0.88rem" }}>{error}</p>
-            <button className="btn btn-ghost btn-sm" onClick={() => { setLoading(true); load(); }} style={{ marginTop: 8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={handleRefresh} style={{ marginTop: 8 }}>
               <RefreshCw size={13} /> Retry
             </button>
           </div>
