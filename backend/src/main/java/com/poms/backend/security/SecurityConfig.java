@@ -109,6 +109,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Public endpoint: POST /api/login requires no token
                 .requestMatchers(HttpMethod.POST, "/api/login").permitAll()
+                // Public endpoint: GET /api/health requires no token
+                .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                 .requestMatchers("/error").permitAll()
                 // Public Swagger & OpenAPI endpoints
                 .requestMatchers(
