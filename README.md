@@ -1,13 +1,13 @@
 # Purchase Order Management System (POMS)
 
-> An enterprise-grade procurement and purchase order management web application connecting React, Express, and MySQL.
+> An enterprise-grade procurement and purchase order management web application connecting React, Spring Boot, and PostgreSQL.
 
 ---
 
 ## Demo & Video Links
 
-- **Live Demo**: Not deployed yet — planned for Review-II (Local development only for Review-I)
-- **Video Demo**: To be added for Review-II
+- **Live Demo**: Planned for production deployment
+- **Swagger OpenAPI Docs**: [http://localhost:5000/swagger-ui.html](http://localhost:5000/swagger-ui.html) (when backend is running)
 
 ---
 
@@ -19,7 +19,7 @@
 - [Features](#features)
 - [Screenshots](#screenshots)
 - [Getting Started](#getting-started)
-- [Environment Variables](#environment-variables)
+- [Configuration](#configuration)
 - [API Documentation](#api-documentation)
 - [Running Tests](#running-tests)
 - [Deployment](#deployment)
@@ -54,16 +54,18 @@ Manual procurement workflows reliant on static spreadsheets and paper approvals 
 
 ### Backend
 
-- **Runtime**: Node.js
-- **Framework**: Express.js
-- **Database Driver**: `mysql2/promise` (Connection Pooling)
-- **Security**: `bcryptjs` (salted hash comparison), `jsonwebtoken` (JWT signed sessions)
-- **Environment**: `dotenv`, `cors` (origin-gated)
+- **Runtime & Language**: Java 21
+- **Framework**: Spring Boot 3
+- **ORM & Data**: Spring Data JPA / Hibernate
+- **Security**: Spring Security + JJWT (JSON Web Token signed sessions)
+- **API Documentation**: SpringDoc OpenAPI 3 / Swagger UI
+- **Build Tool**: Maven with Maven Wrapper (`mvnw` / `mvnw.cmd`)
 
 ### Database
 
-- **Engine**: MySQL 8
+- **Engine**: PostgreSQL
 - **Database Name**: `purchase_order_db`
+- **Default Schema**: `public`
 
 ---
 
@@ -71,8 +73,8 @@ Manual procurement workflows reliant on static spreadsheets and paper approvals 
 
 ### Authentication & Security
 
-- **JWT Authorization**: Token-based security signed by Express backend with 8-hour session expiration.
-- **Bcrypt Password Security**: Mandatory `bcrypt.compare` verification for login authentication.
+- **JWT Authorization**: Token-based security signed by Spring Boot backend with role claim and session expiration.
+- **BCrypt Password Security**: Salting and hash verification for user authentication.
 - **Protected Routes**: Client-side route guards ensuring unauthenticated visitors are redirected to login.
 - **Global Interceptors**: Automatic bearer token injection on outgoing Axios requests with instant 401 redirect handling.
 
@@ -87,7 +89,7 @@ Manual procurement workflows reliant on static spreadsheets and paper approvals 
 
 - **Vendors Management**: Supplier directory tracking company details, contact persons, emails, phones, GST numbers, and active status (`GET /api/vendors`).
 - **Products Catalog**: Comprehensive product list mapped to vendors with unit prices, units of measurement, and availability status (`GET /api/products`).
-- **Purchase Orders**: Lifecycle tracking of orders including order dates, expected delivery dates, total amounts, and status badges (`GET /api/purchase-orders`).
+- **Purchase Orders**: Lifecycle tracking of orders including order dates, expected delivery dates, total amounts, item lines, and status badges (`GET /api/purchase-orders`, `POST /api/purchase-orders`, `PATCH /api/purchase-orders/{id}/status`).
 - **Inventory Tracking**: Stock monitoring with automated status calculation (`In Stock`, `Low Stock`, `Reorder Required`) (`GET /api/inventory`).
 - **Goods Receipts**: Delivery verification system linking received items to purchase orders and receiving personnel (`GET /api/goods-receipts`).
 
@@ -110,27 +112,29 @@ git clone https://github.com/nishanthpn006/purchase-order-management-system.git
 cd purchase-order-management-system
 ```
 
-### 2. Database Setup (MySQL 8)
+### 2. Database Setup (PostgreSQL)
 
-Open MySQL Workbench or your terminal MySQL client and run `database/schema.sql` followed by `database/seed.sql`:
+Create the `purchase_order_db` database in PostgreSQL and initialize the schema and seed scripts:
 
-```sql
-SOURCE database/schema.sql;
-SOURCE database/seed.sql;
+```bash
+psql -U postgres -d purchase_order_db -f database/schema.sql
+psql -U postgres -d purchase_order_db -f database/seed.sql
 ```
 
-### 3. Backend Setup
+### 3. Backend Setup (Spring Boot)
 
-Navigate to the `backend/` directory, create a `.env` file, install dependencies, and start the server:
+Navigate to the `backend/` directory, verify configuration in `src/main/resources/application.properties`, and start the Spring Boot service:
 
 ```bash
 cd backend
-cp .env.example .env
-npm install
-node src/server.js
+./mvnw spring-boot:run
+# On Windows PowerShell:
+# .\mvnw.cmd spring-boot:run
 ```
 
-### 4. Frontend Setup
+The backend server runs on `http://localhost:5000`. Swagger documentation is available at `http://localhost:5000/swagger-ui.html`.
+
+### 4. Frontend Setup (React + Vite)
 
 In a new terminal window, navigate to the `frontend/` directory, install dependencies, and start the Vite dev server:
 
@@ -144,59 +148,75 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-- **Demo Credentials**: `admin@poms.com` / `admin123`
+- **Demo Credentials**: `nishanth@poms.com` / `admin123`
 
 ---
 
-## Environment Variables
+## Configuration
 
-The backend relies on the following environment variables defined in `.env`:
+The backend configuration is managed via `backend/src/main/resources/application.properties`:
 
-```env
-PORT=5000
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=your_mysql_password
-DB_NAME=purchase_order_db
-JWT_SECRET=replace_with_a_secure_random_secret
-JWT_EXPIRES_IN=8h
-FRONTEND_URL=http://localhost:5173
-```
+- **Port**: `server.port=5000`
+- **Datasource**: PostgreSQL connection details (`spring.datasource.url`, `username`, `password`)
+- **JPA / Hibernate**: DDL and dialect settings
+- **JWT**: `jwt.secret` and expiration duration
+- **Swagger / OpenAPI**: Path endpoints at `/swagger-ui.html` and `/v3/api-docs`
 
 ---
 
 ## API Documentation
 
-> Note: Swagger/OpenAPI documentation is planned for Review-II.
+Interactive Swagger OpenAPI documentation is integrated directly into the Spring Boot backend:
 
-### Implemented REST Endpoints
+- **Swagger UI**: [http://localhost:5000/swagger-ui.html](http://localhost:5000/swagger-ui.html)
+- **OpenAPI JSON Spec**: [http://localhost:5000/v3/api-docs](http://localhost:5000/v3/api-docs)
+
+### Core REST Endpoints
 
 | Method | Endpoint | Authentication | Description |
 | --- | --- | --- | --- |
-| `GET` | `/api/health` | Public | Backend service health check |
 | `POST` | `/api/login` | Public | Authenticates user & returns JWT token |
-| `GET` | `/api/me` | Protected (JWT) | Validates token & returns user session |
-| `GET` | `/api/dashboard/stats` | Protected (JWT) | Returns aggregated KPI counts from MySQL |
+| `GET` | `/api/me` | Protected (JWT) | Validates token & returns authenticated user session |
+| `GET` | `/api/dashboard/stats` | Protected (JWT) | Returns aggregated KPI counts and alerts |
 | `GET` | `/api/vendors` | Protected (JWT) | Retrieves all registered vendor records |
-| `GET` | `/api/products` | Protected (JWT) | Retrieves product catalog joined with vendor names |
-| `GET` | `/api/purchase-orders` | Protected (JWT) | Retrieves purchase orders with vendor & creator details |
-| `GET` | `/api/inventory` | Protected (JWT) | Retrieves inventory stock joined with product details |
-| `GET` | `/api/goods-receipts` | Protected (JWT) | Retrieves goods receipts joined with PO & receiver info |
+| `GET` | `/api/vendors/{id}` | Protected (JWT) | Retrieves single vendor by ID |
+| `GET` | `/api/products` | Protected (JWT) | Retrieves product catalog |
+| `GET` | `/api/products/{id}` | Protected (JWT) | Retrieves single product by ID |
+| `GET` | `/api/purchase-orders` | Protected (JWT) | Retrieves all purchase orders |
+| `GET` | `/api/purchase-orders/{id}` | Protected (JWT) | Retrieves purchase order details and items |
+| `POST` | `/api/purchase-orders` | Protected (JWT) | Creates new purchase order with line items |
+| `PATCH` | `/api/purchase-orders/{id}/status` | Protected (Admin/Manager) | Updates status (`Pending`, `Approved`, `Completed`, `Rejected`) |
+| `GET` | `/api/inventory` | Protected (JWT) | Retrieves inventory stock records |
+| `GET` | `/api/goods-receipts` | Protected (JWT) | Retrieves goods receipts delivery records |
 
 ---
 
 ## Running Tests
 
-For Review-I, verification is conducted through API smoke scripts and manual frontend integration testing:
+Automated testing is implemented for both the backend service layer and frontend components:
 
-- **API Verification**: Executed node scripts validating HTTP status codes and database payloads across all routes.
-- **Frontend Verification**: Client-side manual testing verifying login flow, JWT storage, route redirection, dashboard rendering, and module data tables.
+### Backend Tests (JUnit 5 & Mockito)
+
+```bash
+cd backend
+./mvnw test
+# Or full clean verify:
+./mvnw clean verify
+```
+
+### Frontend Lint & Build
+
+```bash
+cd frontend
+npm run lint
+npm run build
+```
 
 ---
 
 ## Deployment
 
-Currently configured for **Local Development**. Production deployment (Render/Vercel) is scheduled for Review-II.
+Currently configured for **Local Development**. Production deployment is scheduled for Review-II.
 
 ---
 
@@ -204,16 +224,22 @@ Currently configured for **Local Development**. Production deployment (Render/Ve
 
 ```text
 purchase-order-management-system/
-├── backend/
+├── backend/                  # Spring Boot 3 + Java 21 REST API
+│   ├── .mvn/                # Maven wrapper binaries & properties
 │   ├── src/
-│   │   ├── config/          # MySQL connection pool (db.js)
-│   │   ├── controllers/     # Controller business logic
-│   │   ├── middlewares/     # JWT authentication middleware
-│   │   ├── routes/          # Express route definitions
-│   │   └── server.js        # Express app entrypoint
-│   ├── .env.example         # Environment template
-│   └── package.json
-├── frontend/
+│   │   ├── main/java/com/poms/backend/
+│   │   │   ├── config/      # Swagger OpenAPI configuration
+│   │   │   ├── controller/  # REST controllers
+│   │   │   ├── dto/         # Request & response DTOs
+│   │   │   ├── entity/      # JPA entities
+│   │   │   ├── repository/  # Spring Data JPA repositories
+│   │   │   ├── security/    # JWT filter, provider, security configuration
+│   │   │   └── service/     # Business logic services
+│   │   ├── main/resources/  # application.properties
+│   │   └── test/java/com/poms/backend/ # JUnit 5 + Mockito service test suite
+│   ├── mvnw / mvnw.cmd      # Maven wrapper executable scripts
+│   └── pom.xml              # Maven dependency descriptor
+├── frontend/                 # React 19 + Vite web client
 │   ├── src/
 │   │   ├── components/      # Reusable UI components (Sidebar, Navbar, Badges)
 │   │   ├── context/         # AuthContext & useAuth custom hook
@@ -223,15 +249,12 @@ purchase-order-management-system/
 │   │   ├── App.jsx          # Route configuration
 │   │   └── main.jsx         # React application root
 │   └── package.json
-├── database/
-│   ├── schema.sql           # MySQL 8 table schema creation script
-│   └── seed.sql             # Sample data insertion script
-├── diagrams/                # System architecture & ER diagrams
-├── docs/                    # Capstone documentation Markdown files
-├── .gitignore               # Git ignore rules
-├── CHANGELOG.md             # Project changelog
-├── LICENSE                  # MIT License
-└── README.md                # Project documentation
+├── database/                 # Database schema & seed SQL scripts
+├── diagrams/                 # System architecture & ER diagrams
+├── docs/                     # Capstone documentation
+├── CHANGELOG.md              # Project changelog
+├── LICENSE                   # MIT License
+└── README.md                 # Project documentation
 ```
 
 ---
