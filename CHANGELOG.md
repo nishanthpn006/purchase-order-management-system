@@ -8,10 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - Review-II (In Progress)
 
 ### Added
-- **Role-Based Access Control (RBAC)**: Added `authorizeRoles` middleware in `authMiddleware.js` for route-level role authorization (`Admin`, `Manager`, `Employee`).
-- **Purchase Order Itemized Details**: Added `GET /api/purchase-orders/:id` endpoint returning full PO metadata and joined item list.
-- **Transactional PO Creation**: Added `POST /api/purchase-orders` endpoint with MySQL transaction support, unique PO number generation (`PO-YYYYMMDD-XXXX`), and item total calculations.
-- **Approval & Status Workflow**: Added `PATCH /api/purchase-orders/:id/status` endpoint restricted to `Admin` and `Manager` roles.
+- **Backend Architecture Consolidation**: Consolidated the Spring Boot 3 REST API into `backend/`, standardizing on Java 21, Spring Data JPA, Spring Security, and PostgreSQL while removing the legacy Node.js/Express prototype.
+- **Service Layer Test Suite**: Added comprehensive JUnit 5 + Mockito unit tests covering 100% of service methods.
+- **Role-Based Access Control (RBAC)**: Role-level authorization (`Admin`, `Manager`, `Employee`) enforced via Spring Security JWT filter.
+- **Purchase Order Itemized Details**: Added `GET /api/purchase-orders/{id}` endpoint returning full PO metadata and joined item list.
+- **Transactional PO Creation**: Added `POST /api/purchase-orders` endpoint with item total calculations and status workflow.
+- **Approval & Status Workflow**: Added `PATCH /api/purchase-orders/{id}/status` endpoint restricted to `Admin` and `Manager` roles.
 
 ### Planned
 - **Goods Receipt Processing**: Record and validate incoming deliveries against open purchase orders.
