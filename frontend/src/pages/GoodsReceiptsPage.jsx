@@ -17,61 +17,78 @@ function GoodsReceiptsPage() {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState("");
   const [search, setSearch]     = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const load = async () => {
+  const handleRefresh = () => {
     setLoading(true);
     setError("");
-    try {
-      const [grRes, poRes, vendRes] = await Promise.all([
-        getGoodsReceipts(),
-        getPurchaseOrders().catch(() => ({ data: [] })),
-        getVendors().catch(() => ({ data: [] })),
-      ]);
-
-      const rawReceipts = Array.isArray(grRes.data)
-        ? grRes.data
-        : (grRes.data?.data || []);
-      const rawOrders = Array.isArray(poRes.data)
-        ? poRes.data
-        : (poRes.data?.data || []);
-      const rawVends = Array.isArray(vendRes.data)
-        ? vendRes.data
-        : (vendRes.data?.data || []);
-
-      const vendorsMap = {};
-      rawVends.forEach((v) => {
-        vendorsMap[v.id] = v.vendorName || v.vendor_name;
-      });
-
-      const ordersMap = {};
-      rawOrders.forEach((o) => {
-        ordersMap[o.id] = {
-          poNumber: o.poNumber || o.po_number,
-          vendorName: o.vendor_name || vendorsMap[o.vendorId],
-        };
-      });
-
-      const normalized = rawReceipts.map((r) => {
-        const orderInfo = ordersMap[r.purchaseOrderId] || {};
-        return {
-          id: r.id,
-          po_number: r.po_number || orderInfo.poNumber || (r.purchaseOrderId ? `PO #${r.purchaseOrderId}` : "—"),
-          vendor_name: r.vendor_name || orderInfo.vendorName || "—",
-          received_date: r.receivedDate || r.received_date,
-          received_by_name: r.received_by_name || (r.receivedBy ? `User #${r.receivedBy}` : "—"),
-          remarks: r.remarks || "—",
-        };
-      });
-
-      setReceipts(normalized);
-    } catch {
-      setError("Unable to load goods receipts.");
-    } finally {
-      setLoading(false);
-    }
+    setRefreshKey((k) => k + 1);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    let ignore = false;
+    const load = async () => {
+      try {
+        const [grRes, poRes, vendRes] = await Promise.all([
+          getGoodsReceipts(),
+          getPurchaseOrders().catch(() => ({ data: [] })),
+          getVendors().catch(() => ({ data: [] })),
+        ]);
+
+        const rawReceipts = Array.isArray(grRes.data)
+          ? grRes.data
+          : (grRes.data?.data || []);
+        const rawOrders = Array.isArray(poRes.data)
+          ? poRes.data
+          : (poRes.data?.data || []);
+        const rawVends = Array.isArray(vendRes.data)
+          ? vendRes.data
+          : (vendRes.data?.data || []);
+
+        const vendorsMap = {};
+        rawVends.forEach((v) => {
+          vendorsMap[v.id] = v.vendorName || v.vendor_name;
+        });
+
+        const ordersMap = {};
+        rawOrders.forEach((o) => {
+          ordersMap[o.id] = {
+            poNumber: o.poNumber || o.po_number,
+            vendorName: o.vendor_name || vendorsMap[o.vendorId],
+          };
+        });
+
+        const normalized = rawReceipts.map((r) => {
+          const orderInfo = ordersMap[r.purchaseOrderId] || {};
+          return {
+            id: r.id,
+            po_number: r.po_number || orderInfo.poNumber || (r.purchaseOrderId ? `PO #${r.purchaseOrderId}` : "—"),
+            vendor_name: r.vendor_name || orderInfo.vendorName || "—",
+            received_date: r.receivedDate || r.received_date,
+            received_by_name: r.received_by_name || (r.receivedBy ? `User #${r.receivedBy}` : "—"),
+            remarks: r.remarks || "—",
+          };
+        });
+
+        if (!ignore) {
+          setReceipts(normalized);
+        }
+      } catch {
+        if (!ignore) {
+          setError("Unable to load goods receipts.");
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    };
+
+    load();
+    return () => {
+      ignore = true;
+    };
+  }, [refreshKey]);
 
   const filtered = receipts.filter(
     (r) =>
@@ -100,7 +117,7 @@ function GoodsReceiptsPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => { setLoading(true); load(); }} title="Refresh">
+            <button className="btn btn-ghost btn-sm" onClick={handleRefresh} title="Refresh">
               <RefreshCw size={14} />
             </button>
           </div>
@@ -111,7 +128,7 @@ function GoodsReceiptsPage() {
         {error ? (
           <div className="empty-state">
             <p style={{ color: "var(--danger)", fontSize: "0.88rem" }}>{error}</p>
-            <button className="btn btn-ghost btn-sm" onClick={() => { setLoading(true); load(); }} style={{ marginTop: 8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={handleRefresh} style={{ marginTop: 8 }}>
               <RefreshCw size={13} /> Retry
             </button>
           </div>

@@ -56,56 +56,73 @@ function PurchaseOrdersPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError]   = useState("");
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [refreshKey, setRefreshKey]         = useState(0);
 
-  const loadData = async () => {
+  const handleRefresh = () => {
     setLoading(true);
     setError("");
-    try {
-      const [poRes, vRes, pRes] = await Promise.all([
-        getPurchaseOrders(),
-        getVendors().catch(() => ({ data: [] })),
-        getProducts().catch(() => ({ data: [] })),
-      ]);
-
-      const rawOrders = Array.isArray(poRes.data)
-        ? poRes.data
-        : (poRes.data?.data || []);
-      const rawVendors = Array.isArray(vRes.data)
-        ? vRes.data
-        : (vRes.data?.data || []);
-      const rawProducts = Array.isArray(pRes.data)
-        ? pRes.data
-        : (pRes.data?.data || []);
-
-      const vendorsMap = {};
-      rawVendors.forEach((v) => {
-        vendorsMap[v.id] = v.vendorName || v.vendor_name;
-      });
-
-      const normalizedOrders = rawOrders.map((po) => ({
-        id: po.id,
-        po_number: po.poNumber || po.po_number || `PO-${po.id}`,
-        vendor_id: po.vendorId,
-        vendor_name: po.vendor_name || vendorsMap[po.vendorId] || `Vendor #${po.vendorId || "—"}`,
-        order_date: po.orderDate || po.order_date,
-        expected_delivery: po.expectedDelivery || po.expected_delivery,
-        total_amount: po.totalAmount ?? po.total_amount,
-        status: po.status || "Pending",
-        created_by: po.createdBy,
-        created_at: po.createdAt || po.created_at,
-      }));
-
-      setOrders(normalizedOrders);
-      setVendors(rawVendors);
-      setProducts(rawProducts);
-    } catch {
-      setError("Unable to load purchase orders.");
-    } finally {
-      setLoading(false);
-    }
+    setRefreshKey((k) => k + 1);
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    let ignore = false;
+    const load = async () => {
+      try {
+        const [poRes, vRes, pRes] = await Promise.all([
+          getPurchaseOrders(),
+          getVendors().catch(() => ({ data: [] })),
+          getProducts().catch(() => ({ data: [] })),
+        ]);
+
+        const rawOrders = Array.isArray(poRes.data)
+          ? poRes.data
+          : (poRes.data?.data || []);
+        const rawVendors = Array.isArray(vRes.data)
+          ? vRes.data
+          : (vRes.data?.data || []);
+        const rawProducts = Array.isArray(pRes.data)
+          ? pRes.data
+          : (pRes.data?.data || []);
+
+        const vendorsMap = {};
+        rawVendors.forEach((v) => {
+          vendorsMap[v.id] = v.vendorName || v.vendor_name;
+        });
+
+        const normalizedOrders = rawOrders.map((po) => ({
+          id: po.id,
+          po_number: po.poNumber || po.po_number || `PO-${po.id}`,
+          vendor_id: po.vendorId,
+          vendor_name: po.vendor_name || vendorsMap[po.vendorId] || `Vendor #${po.vendorId || "—"}`,
+          order_date: po.orderDate || po.order_date,
+          expected_delivery: po.expectedDelivery || po.expected_delivery,
+          total_amount: po.totalAmount ?? po.total_amount,
+          status: po.status || "Pending",
+          created_by: po.createdBy,
+          created_at: po.createdAt || po.created_at,
+        }));
+
+        if (!ignore) {
+          setOrders(normalizedOrders);
+          setVendors(rawVendors);
+          setProducts(rawProducts);
+        }
+      } catch {
+        if (!ignore) {
+          setError("Unable to load purchase orders.");
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    };
+
+    load();
+    return () => {
+      ignore = true;
+    };
+  }, [refreshKey]);
 
   // Filtered orders
   const filtered = orders.filter(
@@ -140,7 +157,7 @@ function PurchaseOrdersPage() {
       await updatePurchaseOrderStatus(selectedPO.id, newStatus);
       setSelectedPO((prev) => ({ ...prev, status: newStatus }));
       setSuccessMsg(`Purchase order ${selectedPO.poNumber || selectedPO.po_number} status updated to ${newStatus}.`);
-      loadData();
+      setRefreshKey((k) => k + 1);
     } catch (err) {
       const msg =
         err.response?.data?.error ||
@@ -238,7 +255,7 @@ function PurchaseOrdersPage() {
         expectedDelivery: "",
         items: [{ productId: "", quantity: 1, unitPrice: "" }],
       });
-      loadData();
+      setRefreshKey((k) => k + 1);
     } catch (err) {
       const msg =
         err.response?.data?.error ||
@@ -270,7 +287,7 @@ function PurchaseOrdersPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => { setLoading(true); loadData(); }} title="Refresh">
+            <button className="btn btn-ghost btn-sm" onClick={handleRefresh} title="Refresh">
               <RefreshCw size={14} />
             </button>
             <button
@@ -319,7 +336,7 @@ function PurchaseOrdersPage() {
         {error ? (
           <div className="empty-state">
             <p style={{ color: "var(--danger)", fontSize: "0.88rem" }}>{error}</p>
-            <button className="btn btn-ghost btn-sm" onClick={() => { setLoading(true); loadData(); }} style={{ marginTop: 8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={handleRefresh} style={{ marginTop: 8 }}>
               <RefreshCw size={13} /> Retry
             </button>
           </div>
