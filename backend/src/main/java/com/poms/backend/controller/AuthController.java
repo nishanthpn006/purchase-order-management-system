@@ -23,6 +23,8 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -32,6 +34,8 @@ import java.util.Optional;
 @RequestMapping("/api")
 @Tag(name = "Authentication", description = "User authentication and profile management endpoints")
 public class AuthController {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
@@ -81,10 +85,12 @@ public class AuthController {
                     )
             );
         } catch (BadCredentialsException e) {
+            log.warn("Login failed for email: {}", loginRequest.getEmail());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Invalid email or password"));
         }
 
+        log.info("Login successful for email: {}", loginRequest.getEmail());
         final UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequest.getEmail());
         final String token = jwtUtil.generateToken(userDetails);
         return ResponseEntity.ok(new LoginResponse(token));
