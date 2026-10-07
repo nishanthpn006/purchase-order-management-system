@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Search, UserPlus, ExternalLink, RefreshCw, X, Plus, Edit } from "lucide-react";
-import { getVendors, getVendorById, createVendor, updateVendor } from "../services/api";
+import { Search, UserPlus, ExternalLink, RefreshCw, X, Plus, Edit, Ban, AlertTriangle } from "lucide-react";
+import { getVendors, getVendorById, createVendor, updateVendor, deactivateVendor } from "../services/api";
 import StatusBadge from "../components/StatusBadge";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
@@ -58,6 +58,11 @@ function VendorsPage() {
   const [editSubmitting, setEditSubmitting]     = useState(false);
   const [editError, setEditError]               = useState("");
   const [editForm, setEditForm]                 = useState(initialEditForm);
+
+  // Deactivate Vendor modal state
+  const [vendorToDeactivate, setVendorToDeactivate]     = useState(null);
+  const [deactivateSubmitting, setDeactivateSubmitting] = useState(false);
+  const [deactivateError, setDeactivateError]           = useState("");
 
   const handleOpenCreate = () => {
     setCreateForm(initialCreateForm);
@@ -204,6 +209,53 @@ function VendorsPage() {
       setEditError(msg);
     } finally {
       setEditSubmitting(false);
+    }
+  };
+
+  const handleOpenDeactivate = (vendor) => {
+    setVendorToDeactivate(vendor);
+    setDeactivateError("");
+  };
+
+  const handleCloseDeactivate = () => {
+    if (deactivateSubmitting) return;
+    setVendorToDeactivate(null);
+    setDeactivateError("");
+  };
+
+  const handleConfirmDeactivate = async () => {
+    if (!vendorToDeactivate || deactivateSubmitting) return;
+
+    setDeactivateSubmitting(true);
+    setDeactivateError("");
+    try {
+      await deactivateVendor(vendorToDeactivate.id);
+      const vName =
+        vendorToDeactivate.vendor_name ||
+        vendorToDeactivate.rawVendorName ||
+        `Vendor #${vendorToDeactivate.id}`;
+      setSuccessMsg(`Vendor "${vName}" deactivated successfully.`);
+      setVendorToDeactivate(null);
+      // Immediately reflect status as Inactive in local state
+      setVendors((prev) =>
+        prev.map((v) =>
+          v.id === vendorToDeactivate.id ? { ...v, status: "Inactive" } : v
+        )
+      );
+      // Refresh/reload the vendor list from the backend
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        (err.response?.status === 403
+          ? "Access denied: Only Admin and Manager roles can deactivate vendors."
+          : err.response?.status === 404
+          ? "Vendor not found."
+          : "Failed to deactivate vendor. Please try again.");
+      setDeactivateError(msg);
+    } finally {
+      setDeactivateSubmitting(false);
     }
   };
 
@@ -543,6 +595,18 @@ function VendorsPage() {
                             >
                               <Edit size={12} /> Edit
                             </button>
+                            {(v.status || "Active").toLowerCase() === "active" && (
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => handleOpenDeactivate(v)}
+                                title="Deactivate Vendor"
+                                id={`deactivate-vendor-${v.id}-btn`}
+                                style={{ gap: 4, padding: "3px 8px", color: "var(--danger)" }}
+                              >
+                                <Ban size={12} /> Deactivate
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -646,6 +710,22 @@ function VendorsPage() {
                 >
                   <Edit size={13} />
                   <span>Edit</span>
+                </button>
+              )}
+              {selectedVendor && (selectedVendor.status || "Active").toLowerCase() === "active" && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    const vendorObj = vendors.find((v) => v.id === selectedVendor.id) || selectedVendor;
+                    setIsDetailOpen(false);
+                    handleOpenDeactivate(vendorObj);
+                  }}
+                  style={{ gap: 4, color: "var(--danger)" }}
+                  title="Deactivate Vendor"
+                >
+                  <Ban size={13} />
+                  <span>Deactivate</span>
                 </button>
               )}
             </div>
@@ -1017,6 +1097,113 @@ function VendorsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── DEACTIVATE VENDOR CONFIRMATION MODAL ───────────── */}
+      {vendorToDeactivate && (
+        <div
+          className="modal-overlay"
+          onClick={handleCloseDeactivate}
+        >
+          <div
+            className="modal-dialog"
+            style={{ maxWidth: 480 }}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="deactivate-vendor-title"
+          >
+            <div className="modal-header">
+              <div id="deactivate-vendor-title" className="modal-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <AlertTriangle size={16} style={{ color: "var(--danger)" }} />
+                <span>Deactivate Vendor</span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm btn-icon"
+                onClick={handleCloseDeactivate}
+                disabled={deactivateSubmitting}
+                aria-label="Close"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {deactivateError && (
+                <div
+                  style={{
+                    background: "var(--danger-bg)",
+                    border: "1px solid var(--danger-border)",
+                    borderRadius: "var(--radius)",
+                    padding: "9px 12px",
+                    color: "var(--danger)",
+                    fontSize: "0.8rem",
+                    marginBottom: 14,
+                  }}
+                  role="alert"
+                >
+                  {deactivateError}
+                </div>
+              )}
+
+              <p style={{ margin: "0 0 12px", fontSize: "0.875rem", color: "var(--text-primary)", lineHeight: 1.5 }}>
+                Are you sure you want to deactivate <strong>"{vendorToDeactivate.vendor_name || vendorToDeactivate.rawVendorName || `Vendor #${vendorToDeactivate.id}`}"</strong>?
+              </p>
+
+              <div
+                style={{
+                  background: "var(--background)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius)",
+                  padding: "10px 14px",
+                  fontSize: "0.8rem",
+                  color: "var(--text-secondary)",
+                  lineHeight: 1.5,
+                }}
+              >
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+                  Business Behavior:
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  <li>The vendor status will be marked as <strong>Inactive</strong>.</li>
+                  <li>The vendor record <strong>will not be deleted</strong> and remains in the database.</li>
+                  <li>Contact details, GST/tax profile, and historical purchase orders are preserved.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={handleCloseDeactivate}
+                disabled={deactivateSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger btn-sm"
+                onClick={handleConfirmDeactivate}
+                disabled={deactivateSubmitting}
+                id="confirm-deactivate-vendor-btn"
+              >
+                {deactivateSubmitting ? (
+                  <>
+                    <RefreshCw size={13} className="spin" />
+                    <span>Deactivating…</span>
+                  </>
+                ) : (
+                  <>
+                    <Ban size={13} />
+                    <span>Deactivate Vendor</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

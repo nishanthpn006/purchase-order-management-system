@@ -158,4 +158,43 @@ public class VendorController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
+
+    /**
+     * PATCH /api/vendors/:id/deactivate
+     * Deactivates an existing vendor record by setting its status to Inactive.
+     * Allowed roles: ADMIN, MANAGER.
+     */
+    @PatchMapping("/{id}/deactivate")
+    @Operation(
+            summary = "Deactivate a vendor",
+            description = "Protected endpoint. Deactivates a vendor by setting status to Inactive without deleting its database record. "
+                    + "ROLE RESTRICTION: Only users with ADMIN or MANAGER role are authorized. Users with EMPLOYEE role will receive HTTP 403 Forbidden."
+    )
+    @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Vendor deactivated successfully",
+                    content = @Content(schema = @Schema(implementation = Vendor.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Invalid vendor ID"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Missing or invalid JWT Bearer token"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - Only ADMIN and MANAGER roles can deactivate vendors"),
+            @ApiResponse(responseCode = "404", description = "Vendor not found with specified ID")
+    })
+    public ResponseEntity<?> deactivateVendor(
+            @Parameter(description = "Primary key ID of the vendor to deactivate", required = true, example = "1")
+            @PathVariable Integer id) {
+        if (id == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Vendor ID is required"));
+        }
+        try {
+            Vendor deactivated = vendorService.deactivateVendor(id);
+            return ResponseEntity.ok(deactivated);
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 }
