@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Search, PackagePlus, RefreshCw, Plus, X, Edit } from "lucide-react";
-import { getProducts, getVendors, createProduct, updateProduct } from "../services/api";
+import { Search, PackagePlus, RefreshCw, Plus, X, Edit, Ban, AlertTriangle } from "lucide-react";
+import { getProducts, getVendors, createProduct, updateProduct, deactivateProduct } from "../services/api";
 import StatusBadge from "../components/StatusBadge";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
@@ -56,6 +56,11 @@ function ProductsPage() {
   const [editSubmitting, setEditSubmitting]     = useState(false);
   const [editError, setEditError]               = useState("");
   const [editForm, setEditForm]                 = useState(initialEditForm);
+
+  // Deactivate Product modal state
+  const [productToDeactivate, setProductToDeactivate] = useState(null);
+  const [deactivateSubmitting, setDeactivateSubmitting] = useState(false);
+  const [deactivateError, setDeactivateError]           = useState("");
 
   const handleRefresh = () => {
     setLoading(true);
@@ -201,6 +206,53 @@ function ProductsPage() {
       setEditError(msg);
     } finally {
       setEditSubmitting(false);
+    }
+  };
+
+  const handleOpenDeactivate = (product) => {
+    setProductToDeactivate(product);
+    setDeactivateError("");
+  };
+
+  const handleCloseDeactivate = () => {
+    if (deactivateSubmitting) return;
+    setProductToDeactivate(null);
+    setDeactivateError("");
+  };
+
+  const handleConfirmDeactivate = async () => {
+    if (!productToDeactivate || deactivateSubmitting) return;
+
+    setDeactivateSubmitting(true);
+    setDeactivateError("");
+    try {
+      await deactivateProduct(productToDeactivate.id);
+      const prodName =
+        productToDeactivate.product_name ||
+        productToDeactivate.rawProductName ||
+        `Product #${productToDeactivate.id}`;
+      setSuccessMsg(`Product "${prodName}" deactivated successfully.`);
+      setProductToDeactivate(null);
+      // Immediately reflect status as Unavailable in local state
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === productToDeactivate.id ? { ...p, status: "Unavailable" } : p
+        )
+      );
+      // Trigger background catalog sync
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        (err.response?.status === 403
+          ? "Access denied: Only Admin and Manager roles can deactivate products."
+          : err.response?.status === 404
+          ? "Product not found."
+          : "Failed to deactivate product. Please try again.");
+      setDeactivateError(msg);
+    } finally {
+      setDeactivateSubmitting(false);
     }
   };
 
@@ -479,7 +531,7 @@ function ProductsPage() {
                     <th style={{ textAlign: "right" }}>Unit Price</th>
                     <th>Unit</th>
                     <th>Status</th>
-                    <th style={{ textAlign: "right", width: 90 }}>Actions</th>
+                    <th style={{ textAlign: "right", minWidth: 160 }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -504,15 +556,28 @@ function ProductsPage() {
                         <td className="table-cell-muted">{p.unit ?? "—"}</td>
                         <td><StatusBadge status={p.status} /></td>
                         <td style={{ textAlign: "right" }}>
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => handleOpenEdit(p)}
-                            title="Edit Product"
-                            style={{ gap: 4, padding: "3px 8px" }}
-                          >
-                            <Edit size={12} /> Edit
-                          </button>
+                          <div style={{ display: "inline-flex", gap: 6, alignItems: "center", justifyContent: "flex-end" }}>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => handleOpenEdit(p)}
+                              title="Edit Product"
+                              style={{ gap: 4, padding: "3px 8px" }}
+                            >
+                              <Edit size={12} /> Edit
+                            </button>
+                            {(p.status || "Available").toLowerCase() === "available" && (
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => handleOpenDeactivate(p)}
+                                title="Deactivate Product"
+                                style={{ gap: 4, padding: "3px 8px", color: "var(--danger)" }}
+                              >
+                                <Ban size={12} /> Deactivate
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -955,6 +1020,113 @@ function ProductsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── DEACTIVATE PRODUCT CONFIRMATION MODAL ───────────── */}
+      {productToDeactivate && (
+        <div
+          className="modal-overlay"
+          onClick={handleCloseDeactivate}
+        >
+          <div
+            className="modal-dialog"
+            style={{ maxWidth: 480 }}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="deactivate-product-title"
+          >
+            <div className="modal-header">
+              <div id="deactivate-product-title" className="modal-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <AlertTriangle size={16} style={{ color: "var(--danger)" }} />
+                <span>Deactivate Product</span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm btn-icon"
+                onClick={handleCloseDeactivate}
+                disabled={deactivateSubmitting}
+                aria-label="Close"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {deactivateError && (
+                <div
+                  style={{
+                    background: "var(--danger-bg)",
+                    border: "1px solid var(--danger-border)",
+                    borderRadius: "var(--radius)",
+                    padding: "9px 12px",
+                    color: "var(--danger)",
+                    fontSize: "0.8rem",
+                    marginBottom: 14,
+                  }}
+                  role="alert"
+                >
+                  {deactivateError}
+                </div>
+              )}
+
+              <p style={{ margin: "0 0 12px", fontSize: "0.875rem", color: "var(--text-primary)", lineHeight: 1.5 }}>
+                Are you sure you want to deactivate <strong>"{productToDeactivate.product_name}"</strong>?
+              </p>
+
+              <div
+                style={{
+                  background: "var(--background)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius)",
+                  padding: "10px 14px",
+                  fontSize: "0.8rem",
+                  color: "var(--text-secondary)",
+                  lineHeight: 1.5,
+                }}
+              >
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+                  Business Behavior:
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  <li>The product status will be set to <strong>Unavailable</strong>.</li>
+                  <li>The product record <strong>will not be deleted</strong> and remains in the database.</li>
+                  <li>Historical orders, vendor details, and unit pricing are preserved.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={handleCloseDeactivate}
+                disabled={deactivateSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger btn-sm"
+                onClick={handleConfirmDeactivate}
+                disabled={deactivateSubmitting}
+                id="confirm-deactivate-btn"
+              >
+                {deactivateSubmitting ? (
+                  <>
+                    <RefreshCw size={13} className="spin" />
+                    <span>Deactivating…</span>
+                  </>
+                ) : (
+                  <>
+                    <Ban size={13} />
+                    <span>Deactivate Product</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -695,4 +695,99 @@ class ProductServiceTest {
         assertEquals("Status must be either 'Available' or 'Unavailable'", ex.getMessage());
         verify(productRepository, never()).save(any());
     }
+
+    // ==========================================
+    // deactivateProduct Tests
+    // ==========================================
+
+    @Test
+    @DisplayName("deactivateProduct sets product status to Unavailable and saves")
+    void deactivateProduct_Success_ProductBecomesUnavailable() {
+        sampleProduct.setStatus("Available");
+        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Product result = productService.deactivateProduct(1);
+
+        assertNotNull(result);
+        assertEquals("Unavailable", result.getStatus());
+        verify(productRepository, times(1)).save(sampleProduct);
+    }
+
+    @Test
+    @DisplayName("deactivateProduct with Long ID sets product status to Unavailable")
+    void deactivateProduct_Success_WithLongId() {
+        sampleProduct.setStatus("Available");
+        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Product result = productService.deactivateProduct(1L);
+
+        assertNotNull(result);
+        assertEquals("Unavailable", result.getStatus());
+        verify(productRepository, times(1)).save(sampleProduct);
+    }
+
+    @Test
+    @DisplayName("deactivateProduct is idempotent: already Unavailable remains Unavailable without error")
+    void deactivateProduct_AlreadyUnavailable_RemainsUnavailable() {
+        sampleProduct.setStatus("Unavailable");
+        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+
+        Product result = productService.deactivateProduct(1);
+
+        assertNotNull(result);
+        assertEquals("Unavailable", result.getStatus());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("deactivateProduct throws NoSuchElementException when product does not exist")
+    void deactivateProduct_ProductNotFound_ThrowsException() {
+        when(productRepository.findById(999)).thenReturn(Optional.empty());
+
+        NoSuchElementException ex = assertThrows(NoSuchElementException.class, () ->
+                productService.deactivateProduct(999)
+        );
+        assertEquals("Product not found with ID: 999", ex.getMessage());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("deactivateProduct preserves all other product fields intact")
+    void deactivateProduct_PreservesExistingFields() {
+        LocalDateTime originalCreatedAt = sampleProduct.getCreatedAt();
+        sampleProduct.setStatus("Available");
+        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Product result = productService.deactivateProduct(1);
+
+        assertNotNull(result);
+        assertEquals(1, result.getId());
+        assertEquals(10, result.getVendorId());
+        assertEquals("Ergonomic Office Chair", result.getProductName());
+        assertEquals("Furniture", result.getCategory());
+        assertEquals("High-grade mesh ergonomic chair with lumbar support", result.getDescription());
+        assertEquals(new BigDecimal("7499.50"), result.getUnitPrice());
+        assertEquals(25, result.getStockQuantity());
+        assertEquals("Pieces", result.getUnit());
+        assertEquals(originalCreatedAt, result.getCreatedAt());
+        assertEquals("Unavailable", result.getStatus());
+    }
+
+    @Test
+    @DisplayName("deactivateProduct throws IllegalArgumentException when ID is null")
+    void deactivateProduct_NullId_ThrowsException() {
+        IllegalArgumentException ex1 = assertThrows(IllegalArgumentException.class, () ->
+                productService.deactivateProduct((Integer) null)
+        );
+        assertEquals("Product ID is required", ex1.getMessage());
+
+        IllegalArgumentException ex2 = assertThrows(IllegalArgumentException.class, () ->
+                productService.deactivateProduct((Long) null)
+        );
+        assertEquals("Product ID is required", ex2.getMessage());
+        verify(productRepository, never()).save(any());
+    }
 }

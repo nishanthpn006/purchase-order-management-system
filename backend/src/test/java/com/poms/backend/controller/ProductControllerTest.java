@@ -265,4 +265,54 @@ class ProductControllerTest {
         assertEquals("Request body is required", body.get("error"));
         verify(productService, never()).updateProduct(any(Integer.class), any());
     }
+
+    // ==========================================
+    // deactivateProduct Tests
+    // ==========================================
+
+    @Test
+    @DisplayName("deactivateProduct returns HTTP 200 OK on success")
+    void deactivateProduct_ValidId_ReturnsOk() {
+        Product deactivated = new Product();
+        deactivated.setId(1);
+        deactivated.setProductName("Dell 24 Monitor");
+        deactivated.setStatus("Unavailable");
+
+        when(productService.deactivateProduct(1)).thenReturn(deactivated);
+
+        ResponseEntity<?> response = productController.deactivateProduct(1);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Product);
+        Product body = (Product) response.getBody();
+        assertEquals("Unavailable", body.getStatus());
+        verify(productService, times(1)).deactivateProduct(1);
+    }
+
+    @Test
+    @DisplayName("deactivateProduct returns HTTP 404 Not Found when product does not exist")
+    void deactivateProduct_ProductNotFound_Returns404() {
+        when(productService.deactivateProduct(999))
+                .thenThrow(new NoSuchElementException("Product not found with ID: 999"));
+
+        ResponseEntity<?> response = productController.deactivateProduct(999);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals("Product not found with ID: 999", body.get("error"));
+        verify(productService, times(1)).deactivateProduct(999);
+    }
+
+    @Test
+    @DisplayName("deactivateProduct returns HTTP 400 Bad Request when ID is null")
+    void deactivateProduct_NullId_ReturnsBadRequest() {
+        ResponseEntity<?> response = productController.deactivateProduct(null);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals("Product ID is required", body.get("error"));
+        verify(productService, never()).deactivateProduct(any(Integer.class));
+    }
 }
