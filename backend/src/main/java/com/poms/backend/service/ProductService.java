@@ -210,4 +210,27 @@ public class ProductService {
 
         return productRepository.save(product);
     }
+
+    public Product deactivateProduct(Long id) {
+        if (id == null) {
+            throw new IllegalArgumentException("Product ID is required");
+        }
+        return deactivateProduct(id.intValue());
+    }
+
+    public Product deactivateProduct(Integer id) {
+        if (id == null) {
+            throw new IllegalArgumentException("Product ID is required");
+        }
+
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Product not found with ID: " + id));
+
+        if (!"Unavailable".equals(product.getStatus())) {
+            product.setStatus("Unavailable");
+            return productRepository.save(product);
+        }
+
+        return product;
+    }
 }

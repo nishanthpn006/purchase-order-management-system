@@ -134,6 +134,9 @@ public class SecurityConfig {
                 // Product update restricted to Admin and Manager roles
                 .requestMatchers(HttpMethod.PUT, "/api/products/*", "/api/products/**")
                     .hasAnyRole("ADMIN", "MANAGER")
+                // Product deactivation restricted to Admin and Manager roles
+                .requestMatchers(HttpMethod.PATCH, "/api/products/*/deactivate")
+                    .hasAnyRole("ADMIN", "MANAGER")
                 // All other endpoints require a valid JWT
                 .anyRequest().authenticated()
             )

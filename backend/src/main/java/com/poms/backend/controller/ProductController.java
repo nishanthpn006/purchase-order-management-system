@@ -158,4 +158,43 @@ public class ProductController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
+
+    /**
+     * PATCH /api/products/:id/deactivate
+     * Deactivates an existing product record by setting its status to Unavailable.
+     * Allowed roles: ADMIN, MANAGER.
+     */
+    @PatchMapping("/{id}/deactivate")
+    @Operation(
+            summary = "Deactivate a product",
+            description = "Protected endpoint. Deactivates a product by setting status to Unavailable without deleting its database record. "
+                    + "ROLE RESTRICTION: Only users with ADMIN or MANAGER role are authorized. Users with EMPLOYEE role will receive HTTP 403 Forbidden."
+    )
+    @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Product deactivated successfully",
+                    content = @Content(schema = @Schema(implementation = Product.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Invalid product ID"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Missing or invalid JWT Bearer token"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - Only ADMIN and MANAGER roles can deactivate products"),
+            @ApiResponse(responseCode = "404", description = "Product not found with specified ID")
+    })
+    public ResponseEntity<?> deactivateProduct(
+            @Parameter(description = "Primary key ID of the product to deactivate", required = true, example = "1")
+            @PathVariable Integer id) {
+        if (id == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Product ID is required"));
+        }
+        try {
+            Product deactivated = productService.deactivateProduct(id);
+            return ResponseEntity.ok(deactivated);
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 }
