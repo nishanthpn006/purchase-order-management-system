@@ -50,6 +50,7 @@ export const createVendor            = (data) => api.post("/vendors", data);
 // ── Product service functions ────────────────────────────────
 export const getProducts             = () => api.get("/products");
 export const getProductById          = (id) => api.get(`/products/${id}`);
+export const createProduct           = (data) => api.post("/products", data);
 
 // ── Purchase Order service functions ─────────────────────────
 export const getPurchaseOrders       = () => api.get("/purchase-orders");

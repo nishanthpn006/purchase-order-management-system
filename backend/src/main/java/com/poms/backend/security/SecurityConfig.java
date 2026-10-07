@@ -128,6 +128,9 @@ public class SecurityConfig {
                 // Vendor creation restricted to Admin and Manager roles
                 .requestMatchers(HttpMethod.POST, "/api/vendors")
                     .hasAnyRole("ADMIN", "MANAGER")
+                // Product creation restricted to Admin and Manager roles
+                .requestMatchers(HttpMethod.POST, "/api/products")
+                    .hasAnyRole("ADMIN", "MANAGER")
                 // All other endpoints require a valid JWT
                 .anyRequest().authenticated()
             )
