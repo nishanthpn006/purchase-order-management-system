@@ -1,6 +1,7 @@
 package com.poms.backend.controller;
 
 import com.poms.backend.dto.CreateVendorRequest;
+import com.poms.backend.dto.UpdateVendorRequest;
 import com.poms.backend.entity.Vendor;
 import com.poms.backend.service.VendorService;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -137,5 +139,99 @@ class VendorControllerTest {
         Map<?, ?> body = (Map<?, ?>) response.getBody();
         assertEquals("Request body is required", body.get("error"));
         verify(vendorService, never()).createVendor(any());
+    }
+
+    // ==========================================
+    // updateVendor Tests
+    // ==========================================
+
+    @Test
+    @DisplayName("updateVendor returns HTTP 200 OK on valid request")
+    void updateVendor_ValidRequest_ReturnsOk() {
+        UpdateVendorRequest request = new UpdateVendorRequest(
+                "Dell Technologies Inc",
+                "Arun Patel",
+                "dell@poms.com",
+                "9876543210",
+                "Bangalore",
+                "29ABCDE1234F1Z5",
+                "Active"
+        );
+
+        Vendor updated = new Vendor();
+        updated.setId(1);
+        updated.setVendorName("Dell Technologies Inc");
+        updated.setStatus("Active");
+
+        when(vendorService.updateVendor(eq(1), any(UpdateVendorRequest.class))).thenReturn(updated);
+
+        ResponseEntity<?> response = vendorController.updateVendor(1, request);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Vendor);
+        Vendor body = (Vendor) response.getBody();
+        assertEquals("Dell Technologies Inc", body.getVendorName());
+        verify(vendorService, times(1)).updateVendor(1, request);
+    }
+
+    @Test
+    @DisplayName("updateVendor returns HTTP 404 Not Found when vendor does not exist")
+    void updateVendor_VendorNotFound_Returns404() {
+        UpdateVendorRequest request = new UpdateVendorRequest();
+        request.setVendorName("Dell Technologies Inc");
+
+        when(vendorService.updateVendor(eq(999), any(UpdateVendorRequest.class)))
+                .thenThrow(new NoSuchElementException("Vendor not found with ID: 999"));
+
+        ResponseEntity<?> response = vendorController.updateVendor(999, request);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals("Vendor not found with ID: 999", body.get("error"));
+        verify(vendorService, times(1)).updateVendor(999, request);
+    }
+
+    @Test
+    @DisplayName("updateVendor returns HTTP 400 Bad Request when validation fails in service")
+    void updateVendor_ValidationError_ReturnsBadRequest() {
+        UpdateVendorRequest request = new UpdateVendorRequest();
+        request.setVendorName("");
+
+        when(vendorService.updateVendor(eq(1), any(UpdateVendorRequest.class)))
+                .thenThrow(new IllegalArgumentException("Vendor name is required"));
+
+        ResponseEntity<?> response = vendorController.updateVendor(1, request);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals("Vendor name is required", body.get("error"));
+    }
+
+    @Test
+    @DisplayName("updateVendor returns HTTP 400 Bad Request when ID is null")
+    void updateVendor_NullId_ReturnsBadRequest() {
+        UpdateVendorRequest request = new UpdateVendorRequest();
+
+        ResponseEntity<?> response = vendorController.updateVendor(null, request);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals("Vendor ID is required", body.get("error"));
+        verify(vendorService, never()).updateVendor(any(Integer.class), any());
+    }
+
+    @Test
+    @DisplayName("updateVendor returns HTTP 400 Bad Request when request body is null")
+    void updateVendor_NullRequest_ReturnsBadRequest() {
+        ResponseEntity<?> response = vendorController.updateVendor(1, null);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals("Request body is required", body.get("error"));
+        verify(vendorService, never()).updateVendor(any(Integer.class), any());
     }
 }
