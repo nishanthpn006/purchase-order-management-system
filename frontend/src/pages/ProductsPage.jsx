@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Search, PackagePlus, RefreshCw, Plus } from "lucide-react";
-import { getProducts, getVendors } from "../services/api";
+import { Search, PackagePlus, RefreshCw, Plus, X } from "lucide-react";
+import { getProducts, getVendors, createProduct } from "../services/api";
 import StatusBadge from "../components/StatusBadge";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
@@ -11,8 +11,20 @@ function fmtCurrency(amount) {
   return "₹" + Number(amount).toLocaleString("en-IN", { minimumFractionDigits: 2 });
 }
 
+const initialCreateForm = {
+  vendorId: "",
+  productName: "",
+  category: "",
+  description: "",
+  unitPrice: "",
+  stockQuantity: 0,
+  unit: "",
+  status: "Available",
+};
+
 function ProductsPage() {
   const [products, setProducts]       = useState([]);
+  const [vendors, setVendors]         = useState([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState("");
   const [search, setSearch]           = useState("");
@@ -20,10 +32,82 @@ function ProductsPage() {
   const [refreshKey, setRefreshKey]   = useState(0);
   const [selectedRows, setSelectedRows] = useState(new Set());
 
+  // Create Product modal state
+  const [isCreateOpen, setIsCreateOpen]         = useState(false);
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError]           = useState("");
+  const [successMsg, setSuccessMsg]             = useState("");
+  const [createForm, setCreateForm]             = useState(initialCreateForm);
+
   const handleRefresh = () => {
     setLoading(true);
     setError("");
     setRefreshKey((k) => k + 1);
+  };
+
+  const handleOpenCreate = () => {
+    setCreateForm(initialCreateForm);
+    setCreateError("");
+    setIsCreateOpen(true);
+  };
+
+  const handleCreateSubmit = async (e) => {
+    e.preventDefault();
+    setCreateError("");
+
+    const trimmedName = createForm.productName?.trim();
+    if (!trimmedName) {
+      setCreateError("Product name is required.");
+      return;
+    }
+
+    if (!createForm.vendorId) {
+      setCreateError("Please select a supplier vendor.");
+      return;
+    }
+
+    const priceNum = Number(createForm.unitPrice);
+    if (createForm.unitPrice === "" || isNaN(priceNum) || priceNum < 0) {
+      setCreateError("Unit price must be a valid non-negative number.");
+      return;
+    }
+
+    const stockNum = Number(createForm.stockQuantity);
+    if (createForm.stockQuantity !== "" && (isNaN(stockNum) || stockNum < 0)) {
+      setCreateError("Stock quantity cannot be negative.");
+      return;
+    }
+
+    setCreateSubmitting(true);
+    try {
+      const payload = {
+        vendorId: Number(createForm.vendorId),
+        productName: trimmedName,
+        category: createForm.category?.trim() || null,
+        description: createForm.description?.trim() || null,
+        unitPrice: priceNum,
+        stockQuantity: isNaN(stockNum) ? 0 : Math.floor(stockNum),
+        unit: createForm.unit?.trim() || null,
+        status: createForm.status || "Available",
+      };
+
+      const res = await createProduct(payload);
+      const created = res.data;
+      setSuccessMsg(`Product "${created.productName || created.product_name || trimmedName}" created successfully.`);
+      setIsCreateOpen(false);
+      setCreateForm(initialCreateForm);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        (err.response?.status === 403
+          ? "Access denied: Only Admin and Manager roles can add products."
+          : "Failed to create product. Please check inputs.");
+      setCreateError(msg);
+    } finally {
+      setCreateSubmitting(false);
+    }
   };
 
   useEffect(() => {
@@ -62,6 +146,7 @@ function ProductsPage() {
 
         if (!ignore) {
           setProducts(normalized);
+          setVendors(rawVends);
         }
       } catch {
         if (!ignore) {
@@ -132,13 +217,47 @@ function ProductsPage() {
               <RefreshCw size={13} />
               <span>Refresh</span>
             </button>
-            <button className="btn btn-primary btn-sm">
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={handleOpenCreate}
+              id="add-product-btn"
+              title="Add a new product"
+            >
               <PackagePlus size={14} />
               <span>Add Product</span>
             </button>
           </div>
         </div>
       </div>
+
+      {successMsg && (
+        <div
+          style={{
+            background: "var(--success-bg)",
+            border: "1px solid var(--success-border)",
+            borderRadius: "var(--radius)",
+            padding: "9px 12px",
+            color: "var(--success)",
+            fontSize: "0.8rem",
+            marginBottom: 12,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+          role="status"
+        >
+          <span>{successMsg}</span>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm btn-icon"
+            style={{ border: "none", color: "inherit", height: "auto", padding: 0 }}
+            onClick={() => setSuccessMsg("")}
+            aria-label="Dismiss message"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Segmented Status Filter Tabs */}
       <div style={{ marginBottom: 12 }}>
@@ -311,6 +430,215 @@ function ProductsPage() {
           </>
         )}
       </div>
+
+      {/* ── CREATE PRODUCT MODAL ──────────────────────────────── */}
+      {isCreateOpen && (
+        <div
+          className="modal-overlay"
+          onClick={() => !createSubmitting && setIsCreateOpen(false)}
+        >
+          <div
+            className="modal-dialog modal-dialog-lg"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-product-title"
+          >
+            <div className="modal-header">
+              <div id="create-product-title" className="modal-title">
+                Add New Product
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm btn-icon"
+                onClick={() => setIsCreateOpen(false)}
+                disabled={createSubmitting}
+                aria-label="Close"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateSubmit}>
+              <div className="modal-body">
+                {createError && (
+                  <div
+                    style={{
+                      background: "var(--danger-bg)",
+                      border: "1px solid var(--danger-border)",
+                      borderRadius: "var(--radius)",
+                      padding: "9px 12px",
+                      color: "var(--danger)",
+                      fontSize: "0.8rem",
+                      marginBottom: 14,
+                    }}
+                    role="alert"
+                  >
+                    {createError}
+                  </div>
+                )}
+
+                <div className="modal-section-title">Product Details</div>
+                <div className="form-grid">
+                  <div className="form-group form-group-full">
+                    <label htmlFor="product-name-input">Product Name *</label>
+                    <input
+                      id="product-name-input"
+                      type="text"
+                      required
+                      placeholder="e.g. Dell Latitude 5440"
+                      value={createForm.productName}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, productName: e.target.value })
+                      }
+                      disabled={createSubmitting}
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="product-vendor-select">Vendor *</label>
+                    <select
+                      id="product-vendor-select"
+                      required
+                      value={createForm.vendorId}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, vendorId: e.target.value })
+                      }
+                      disabled={createSubmitting}
+                    >
+                      <option value="">Select a vendor…</option>
+                      {vendors.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.vendorName || v.vendor_name || `Vendor #${v.id}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="product-category-input">Category</label>
+                    <input
+                      id="product-category-input"
+                      type="text"
+                      placeholder="e.g. Laptop, Monitor, Accessories"
+                      value={createForm.category}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, category: e.target.value })
+                      }
+                      disabled={createSubmitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="product-price-input">Unit Price (₹) *</label>
+                    <input
+                      id="product-price-input"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      placeholder="e.g. 55000.00"
+                      value={createForm.unitPrice}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, unitPrice: e.target.value })
+                      }
+                      disabled={createSubmitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="product-stock-input">Initial Stock Quantity</label>
+                    <input
+                      id="product-stock-input"
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="e.g. 10"
+                      value={createForm.stockQuantity}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, stockQuantity: e.target.value })
+                      }
+                      disabled={createSubmitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="product-unit-input">Unit of Measure</label>
+                    <input
+                      id="product-unit-input"
+                      type="text"
+                      placeholder="e.g. Piece, Box, Set"
+                      value={createForm.unit}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, unit: e.target.value })
+                      }
+                      disabled={createSubmitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="product-status-select">Status *</label>
+                    <select
+                      id="product-status-select"
+                      value={createForm.status}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, status: e.target.value })
+                      }
+                      disabled={createSubmitting}
+                    >
+                      <option value="Available">Available</option>
+                      <option value="Unavailable">Unavailable</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group form-group-full">
+                    <label htmlFor="product-desc-input">Description</label>
+                    <textarea
+                      id="product-desc-input"
+                      rows="2"
+                      placeholder="e.g. 14 inch business laptop with 16GB RAM and 512GB SSD"
+                      value={createForm.description}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, description: e.target.value })
+                      }
+                      disabled={createSubmitting}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setIsCreateOpen(false)}
+                  disabled={createSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  disabled={createSubmitting}
+                >
+                  {createSubmitting ? (
+                    <>
+                      <RefreshCw size={13} className="spin" />
+                      <span>Saving…</span>
+                    </>
+                  ) : (
+                    <>
+                      <PackagePlus size={14} />
+                      <span>Create Product</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

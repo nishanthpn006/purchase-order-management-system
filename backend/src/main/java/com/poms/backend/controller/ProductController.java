@@ -1,6 +1,7 @@
 package com.poms.backend.controller;
 
 import com.poms.backend.config.OpenApiConfig;
+import com.poms.backend.dto.CreateProductRequest;
 import com.poms.backend.entity.Product;
 import com.poms.backend.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -78,5 +79,38 @@ public class ProductController {
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", "Product not found")));
+    }
+
+    /**
+     * POST /api/products
+     * Creates a new product record.
+     * Allowed roles: ADMIN, MANAGER.
+     */
+    @PostMapping
+    @Operation(
+            summary = "Create a new product",
+            description = "Protected endpoint. Registers a new product item in the catalog linked to a valid supplier vendor. Allowed roles: ADMIN, MANAGER."
+    )
+    @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Product created successfully",
+                    content = @Content(schema = @Schema(implementation = Product.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Validation error or vendor not found"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Missing or invalid JWT Bearer token"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - Only ADMIN and MANAGER roles can create products")
+    })
+    public ResponseEntity<?> createProduct(@RequestBody CreateProductRequest request) {
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Request body is required"));
+        }
+        try {
+            Product created = productService.createProduct(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 }
