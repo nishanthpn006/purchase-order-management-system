@@ -193,4 +193,27 @@ public class VendorService {
 
         return vendorRepository.save(vendor);
     }
+
+    public Vendor deactivateVendor(Long id) {
+        if (id == null) {
+            throw new IllegalArgumentException("Vendor ID is required");
+        }
+        return deactivateVendor(id.intValue());
+    }
+
+    public Vendor deactivateVendor(Integer id) {
+        if (id == null) {
+            throw new IllegalArgumentException("Vendor ID is required");
+        }
+
+        Vendor vendor = vendorRepository.findById(id)
+                .orElseThrow(() -> new java.util.NoSuchElementException("Vendor not found with ID: " + id));
+
+        if (!"Inactive".equals(vendor.getStatus())) {
+            vendor.setStatus("Inactive");
+            return vendorRepository.save(vendor);
+        }
+
+        return vendor;
+    }
 }

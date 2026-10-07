@@ -47,6 +47,7 @@ export const getVendors              = () => api.get("/vendors");
 export const getVendorById           = (id) => api.get(`/vendors/${id}`);
 export const createVendor            = (data) => api.post("/vendors", data);
 export const updateVendor            = (id, data) => api.put(`/vendors/${id}`, data);
+export const deactivateVendor        = (id) => api.patch(`/vendors/${id}/deactivate`);
 
 // ── Product service functions ────────────────────────────────
 export const getProducts             = () => api.get("/products");

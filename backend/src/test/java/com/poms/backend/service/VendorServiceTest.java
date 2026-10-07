@@ -611,4 +611,101 @@ class VendorServiceTest {
         assertEquals("Status must be either 'Active' or 'Inactive'", ex.getMessage());
         verify(vendorRepository, never()).save(any());
     }
+
+    // ==========================================
+    // deactivateVendor Tests
+    // ==========================================
+
+    @Test
+    @DisplayName("deactivateVendor sets vendor status to Inactive and saves")
+    void deactivateVendor_Success_VendorBecomesInactive() {
+        sampleVendor.setStatus("Active");
+        when(vendorRepository.findById(1)).thenReturn(Optional.of(sampleVendor));
+        when(vendorRepository.save(any(Vendor.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Vendor result = vendorService.deactivateVendor(1);
+
+        assertNotNull(result);
+        assertEquals("Inactive", result.getStatus());
+        verify(vendorRepository, times(1)).findById(1);
+        verify(vendorRepository, times(1)).save(sampleVendor);
+    }
+
+    @Test
+    @DisplayName("deactivateVendor with Long ID sets vendor status to Inactive")
+    void deactivateVendor_Success_WithLongId() {
+        sampleVendor.setStatus("Active");
+        when(vendorRepository.findById(1)).thenReturn(Optional.of(sampleVendor));
+        when(vendorRepository.save(any(Vendor.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Vendor result = vendorService.deactivateVendor(1L);
+
+        assertNotNull(result);
+        assertEquals("Inactive", result.getStatus());
+        verify(vendorRepository, times(1)).findById(1);
+        verify(vendorRepository, times(1)).save(sampleVendor);
+    }
+
+    @Test
+    @DisplayName("deactivateVendor is idempotent: already Inactive remains Inactive without error")
+    void deactivateVendor_AlreadyInactive_RemainsInactive() {
+        sampleVendor.setStatus("Inactive");
+        when(vendorRepository.findById(1)).thenReturn(Optional.of(sampleVendor));
+
+        Vendor result = vendorService.deactivateVendor(1);
+
+        assertNotNull(result);
+        assertEquals("Inactive", result.getStatus());
+        verify(vendorRepository, times(1)).findById(1);
+        verify(vendorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("deactivateVendor throws NoSuchElementException when vendor does not exist")
+    void deactivateVendor_VendorNotFound_ThrowsException() {
+        when(vendorRepository.findById(999)).thenReturn(Optional.empty());
+
+        NoSuchElementException ex = assertThrows(NoSuchElementException.class, () ->
+                vendorService.deactivateVendor(999)
+        );
+        assertEquals("Vendor not found with ID: 999", ex.getMessage());
+        verify(vendorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("deactivateVendor preserves all other vendor fields intact")
+    void deactivateVendor_PreservesExistingFields() {
+        LocalDateTime originalCreatedAt = sampleVendor.getCreatedAt();
+        sampleVendor.setStatus("Active");
+        when(vendorRepository.findById(1)).thenReturn(Optional.of(sampleVendor));
+        when(vendorRepository.save(any(Vendor.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Vendor result = vendorService.deactivateVendor(1);
+
+        assertNotNull(result);
+        assertEquals(1, result.getId(), "Vendor ID must remain unchanged");
+        assertEquals("Acme Supplies Ltd", result.getVendorName());
+        assertEquals("Alice Smith", result.getContactPerson());
+        assertEquals("alice@acme.com", result.getEmail());
+        assertEquals("9876543210", result.getPhone());
+        assertEquals("123 Industrial Way, Tech Park", result.getAddress());
+        assertEquals("29ABCDE1234F1Z5", result.getGstNumber());
+        assertEquals(originalCreatedAt, result.getCreatedAt(), "Vendor created_at must remain unchanged");
+        assertEquals("Inactive", result.getStatus());
+    }
+
+    @Test
+    @DisplayName("deactivateVendor throws IllegalArgumentException when ID is null")
+    void deactivateVendor_NullId_ThrowsException() {
+        IllegalArgumentException ex1 = assertThrows(IllegalArgumentException.class, () ->
+                vendorService.deactivateVendor((Integer) null)
+        );
+        assertEquals("Vendor ID is required", ex1.getMessage());
+
+        IllegalArgumentException ex2 = assertThrows(IllegalArgumentException.class, () ->
+                vendorService.deactivateVendor((Long) null)
+        );
+        assertEquals("Vendor ID is required", ex2.getMessage());
+        verify(vendorRepository, never()).save(any());
+    }
 }

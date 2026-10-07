@@ -131,6 +131,9 @@ public class SecurityConfig {
                 // Vendor update restricted to Admin and Manager roles
                 .requestMatchers(HttpMethod.PUT, "/api/vendors/*", "/api/vendors/**")
                     .hasAnyRole("ADMIN", "MANAGER")
+                // Vendor deactivation restricted to Admin and Manager roles
+                .requestMatchers(HttpMethod.PATCH, "/api/vendors/*/deactivate")
+                    .hasAnyRole("ADMIN", "MANAGER")
                 // Product creation restricted to Admin and Manager roles
                 .requestMatchers(HttpMethod.POST, "/api/products")
                     .hasAnyRole("ADMIN", "MANAGER")

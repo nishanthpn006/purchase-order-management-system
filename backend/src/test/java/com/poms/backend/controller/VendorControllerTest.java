@@ -234,4 +234,69 @@ class VendorControllerTest {
         assertEquals("Request body is required", body.get("error"));
         verify(vendorService, never()).updateVendor(any(Integer.class), any());
     }
+
+    // ==========================================
+    // deactivateVendor Tests
+    // ==========================================
+
+    @Test
+    @DisplayName("deactivateVendor returns HTTP 200 OK on success")
+    void deactivateVendor_ValidId_ReturnsOk() {
+        Vendor deactivated = new Vendor();
+        deactivated.setId(1);
+        deactivated.setVendorName("Dell Technologies");
+        deactivated.setStatus("Inactive");
+
+        when(vendorService.deactivateVendor(1)).thenReturn(deactivated);
+
+        ResponseEntity<?> response = vendorController.deactivateVendor(1);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Vendor);
+        Vendor body = (Vendor) response.getBody();
+        assertEquals("Inactive", body.getStatus());
+        verify(vendorService, times(1)).deactivateVendor(1);
+    }
+
+    @Test
+    @DisplayName("deactivateVendor returns HTTP 404 Not Found when vendor does not exist")
+    void deactivateVendor_VendorNotFound_Returns404() {
+        when(vendorService.deactivateVendor(999))
+                .thenThrow(new NoSuchElementException("Vendor not found with ID: 999"));
+
+        ResponseEntity<?> response = vendorController.deactivateVendor(999);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals("Vendor not found with ID: 999", body.get("error"));
+        verify(vendorService, times(1)).deactivateVendor(999);
+    }
+
+    @Test
+    @DisplayName("deactivateVendor returns HTTP 400 Bad Request when ID is null")
+    void deactivateVendor_NullId_ReturnsBadRequest() {
+        ResponseEntity<?> response = vendorController.deactivateVendor(null);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals("Vendor ID is required", body.get("error"));
+        verify(vendorService, never()).deactivateVendor(any(Integer.class));
+    }
+
+    @Test
+    @DisplayName("deactivateVendor returns HTTP 400 Bad Request when validation fails in service")
+    void deactivateVendor_ValidationError_ReturnsBadRequest() {
+        when(vendorService.deactivateVendor(1))
+                .thenThrow(new IllegalArgumentException("Vendor ID is required"));
+
+        ResponseEntity<?> response = vendorController.deactivateVendor(1);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals("Vendor ID is required", body.get("error"));
+        verify(vendorService, times(1)).deactivateVendor(1);
+    }
 }
