@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Search, UserPlus, ExternalLink, RefreshCw, X, Plus } from "lucide-react";
-import { getVendors, getVendorById, createVendor } from "../services/api";
+import { Search, UserPlus, ExternalLink, RefreshCw, X, Plus, Edit } from "lucide-react";
+import { getVendors, getVendorById, createVendor, updateVendor } from "../services/api";
 import StatusBadge from "../components/StatusBadge";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
@@ -14,6 +14,17 @@ function fmtDate(date) {
 }
 
 const initialCreateForm = {
+  vendorName: "",
+  contactPerson: "",
+  email: "",
+  phone: "",
+  address: "",
+  gstNumber: "",
+  status: "Active",
+};
+
+const initialEditForm = {
+  id: null,
   vendorName: "",
   contactPerson: "",
   email: "",
@@ -41,6 +52,12 @@ function VendorsPage() {
   const [createError, setCreateError]           = useState("");
   const [successMsg, setSuccessMsg]             = useState("");
   const [createForm, setCreateForm]             = useState(initialCreateForm);
+
+  // Edit Vendor modal state
+  const [isEditOpen, setIsEditOpen]             = useState(false);
+  const [editSubmitting, setEditSubmitting]     = useState(false);
+  const [editError, setEditError]               = useState("");
+  const [editForm, setEditForm]                 = useState(initialEditForm);
 
   const handleOpenCreate = () => {
     setCreateForm(initialCreateForm);
@@ -97,6 +114,99 @@ function VendorsPage() {
     }
   };
 
+  const handleOpenEdit = (v) => {
+    setEditForm({
+      id: v.id,
+      vendorName: (v.rawVendorName ?? (v.vendor_name !== "—" ? v.vendor_name : "")) || "",
+      contactPerson: (v.rawContactPerson ?? (v.contact_person !== "—" ? v.contact_person : "")) || "",
+      email: (v.rawEmail ?? (v.email !== "—" ? v.email : "")) || "",
+      phone: (v.rawPhone ?? (v.phone !== "—" ? v.phone : "")) || "",
+      address: (v.rawAddress ?? (v.address !== "—" ? v.address : "")) || "",
+      gstNumber: (v.rawGstNumber ?? (v.gst_number !== "—" ? v.gst_number : "")) || "",
+      status: v.status || "Active",
+    });
+    setEditError("");
+    setIsEditOpen(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (editSubmitting) return;
+    setEditError("");
+
+    const trimmedName = editForm.vendorName?.trim();
+    if (!trimmedName) {
+      setEditError("Vendor name is required.");
+      return;
+    }
+
+    if (editForm.email && editForm.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(editForm.email.trim())) {
+        setEditError("Please enter a valid email address.");
+        return;
+      }
+    }
+
+    setEditSubmitting(true);
+    try {
+      const payload = {
+        vendorName: trimmedName,
+        contactPerson: editForm.contactPerson?.trim() || null,
+        email: editForm.email?.trim() || null,
+        phone: editForm.phone?.trim() || null,
+        address: editForm.address?.trim() || null,
+        gstNumber: editForm.gstNumber?.trim() || null,
+        status: editForm.status || "Active",
+      };
+
+      const res = await updateVendor(editForm.id, payload);
+      const updated = res.data;
+      const updatedName = updated.vendorName || updated.vendor_name || trimmedName;
+      setSuccessMsg(`Vendor "${updatedName}" updated successfully.`);
+      setIsEditOpen(false);
+
+      // Immediately display updated values
+      setVendors((prev) =>
+        prev.map((v) =>
+          v.id === editForm.id
+            ? {
+                ...v,
+                vendor_name: updatedName,
+                rawVendorName: updatedName,
+                contact_person: updated.contactPerson || updated.contact_person || payload.contactPerson,
+                rawContactPerson: updated.contactPerson || updated.contact_person || (payload.contactPerson || ""),
+                email: updated.email || payload.email,
+                rawEmail: updated.email || (payload.email || ""),
+                phone: updated.phone || payload.phone,
+                rawPhone: updated.phone || (payload.phone || ""),
+                address: updated.address || payload.address,
+                rawAddress: updated.address || (payload.address || ""),
+                gst_number: updated.gstNumber || updated.gst_number || payload.gstNumber,
+                rawGstNumber: updated.gstNumber || updated.gst_number || (payload.gstNumber || ""),
+                status: updated.status || payload.status,
+              }
+            : v
+        )
+      );
+
+      // Refresh the vendor list from API
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        (err.response?.status === 403
+          ? "Access denied: Only Admin and Manager roles can update vendors."
+          : err.response?.status === 404
+          ? "Vendor not found."
+          : "Failed to update vendor. Please check inputs.");
+      setEditError(msg);
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
   const handleRefresh = () => {
     setLoading(true);
     setError("");
@@ -112,11 +222,17 @@ function VendorsPage() {
         const normalized = raw.map((v) => ({
           id: v.id,
           vendor_name: v.vendorName || v.vendor_name || "—",
+          rawVendorName: v.vendorName || v.vendor_name || "",
           contact_person: v.contactPerson || v.contact_person || null,
+          rawContactPerson: v.contactPerson || v.contact_person || "",
           email: v.email || null,
+          rawEmail: v.email || "",
           phone: v.phone || null,
+          rawPhone: v.phone || "",
           address: v.address || null,
+          rawAddress: v.address || "",
           gst_number: v.gstNumber || v.gst_number || null,
+          rawGstNumber: v.gstNumber || v.gst_number || "",
           status: v.status || "Active",
           created_at: v.createdAt || v.created_at || null,
         }));
@@ -407,12 +523,27 @@ function VendorsPage() {
                         <td className="table-cell-mono table-cell-muted">{v.gst_number ?? "—"}</td>
                         <td><StatusBadge status={v.status} /></td>
                         <td style={{ textAlign: "right" }}>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => handleOpenDetail(v.id)}
-                          >
-                            <ExternalLink size={12} /> View
-                          </button>
+                          <div style={{ display: "inline-flex", gap: 6, alignItems: "center", justifyContent: "flex-end" }}>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => handleOpenDetail(v.id)}
+                              title="View Vendor Details"
+                              style={{ gap: 4, padding: "3px 8px" }}
+                            >
+                              <ExternalLink size={12} /> View
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => handleOpenEdit(v)}
+                              title="Edit Vendor"
+                              id={`edit-vendor-${v.id}-btn`}
+                              style={{ gap: 4, padding: "3px 8px" }}
+                            >
+                              <Edit size={12} /> Edit
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -502,6 +633,21 @@ function VendorsPage() {
               >
                 Close
               </button>
+              {selectedVendor && (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    const vendorObj = vendors.find((v) => v.id === selectedVendor.id) || selectedVendor;
+                    setIsDetailOpen(false);
+                    handleOpenEdit(vendorObj);
+                  }}
+                  style={{ gap: 4 }}
+                >
+                  <Edit size={13} />
+                  <span>Edit</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -682,6 +828,190 @@ function VendorsPage() {
                     <>
                       <UserPlus size={14} />
                       <span>Create Vendor</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── EDIT VENDOR MODAL ────────────────────────────────── */}
+      {isEditOpen && (
+        <div
+          className="modal-overlay"
+          onClick={() => !editSubmitting && setIsEditOpen(false)}
+        >
+          <div
+            className="modal-dialog"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-vendor-title"
+          >
+            <div className="modal-header">
+              <div id="edit-vendor-title" className="modal-title">
+                Edit Vendor
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm btn-icon"
+                onClick={() => setIsEditOpen(false)}
+                disabled={editSubmitting}
+                aria-label="Close"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit}>
+              <div className="modal-body">
+                {editError && (
+                  <div
+                    style={{
+                      background: "var(--danger-bg)",
+                      border: "1px solid var(--danger-border)",
+                      borderRadius: "var(--radius)",
+                      padding: "9px 12px",
+                      color: "var(--danger)",
+                      fontSize: "0.8rem",
+                      marginBottom: 14,
+                    }}
+                    role="alert"
+                  >
+                    {editError}
+                  </div>
+                )}
+
+                <div className="modal-section-title">Vendor Information</div>
+                <div className="form-grid">
+                  <div className="form-group form-group-full">
+                    <label htmlFor="edit-vendor-name-input">Vendor Name *</label>
+                    <input
+                      id="edit-vendor-name-input"
+                      type="text"
+                      required
+                      placeholder="e.g. Acme Supplies Ltd"
+                      value={editForm.vendorName}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, vendorName: e.target.value })
+                      }
+                      disabled={editSubmitting}
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="edit-vendor-contact-input">Contact Person</label>
+                    <input
+                      id="edit-vendor-contact-input"
+                      type="text"
+                      placeholder="e.g. Alice Smith"
+                      value={editForm.contactPerson}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, contactPerson: e.target.value })
+                      }
+                      disabled={editSubmitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="edit-vendor-email-input">Email</label>
+                    <input
+                      id="edit-vendor-email-input"
+                      type="email"
+                      placeholder="e.g. contact@acme.com"
+                      value={editForm.email}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, email: e.target.value })
+                      }
+                      disabled={editSubmitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="edit-vendor-phone-input">Phone</label>
+                    <input
+                      id="edit-vendor-phone-input"
+                      type="tel"
+                      placeholder="e.g. 9876543210"
+                      value={editForm.phone}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, phone: e.target.value })
+                      }
+                      disabled={editSubmitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="edit-vendor-gst-input">GST Number</label>
+                    <input
+                      id="edit-vendor-gst-input"
+                      type="text"
+                      placeholder="e.g. 29ABCDE1234F1Z5"
+                      value={editForm.gstNumber}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, gstNumber: e.target.value })
+                      }
+                      disabled={editSubmitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="edit-vendor-status-select">Status *</label>
+                    <select
+                      id="edit-vendor-status-select"
+                      value={editForm.status}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, status: e.target.value })
+                      }
+                      disabled={editSubmitting}
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group form-group-full">
+                    <label htmlFor="edit-vendor-address-input">Registered Address</label>
+                    <textarea
+                      id="edit-vendor-address-input"
+                      rows="2"
+                      placeholder="e.g. 123 Industrial Way, Tech Park, Bangalore"
+                      value={editForm.address}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, address: e.target.value })
+                      }
+                      disabled={editSubmitting}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setIsEditOpen(false)}
+                  disabled={editSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  disabled={editSubmitting}
+                >
+                  {editSubmitting ? (
+                    <>
+                      <RefreshCw size={13} className="spin" />
+                      <span>Saving…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Edit size={14} />
+                      <span>Save Changes</span>
                     </>
                   )}
                 </button>
