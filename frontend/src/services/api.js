@@ -45,6 +45,7 @@ export const getDashboardStats       = () => api.get("/dashboard/stats");
 // ── Vendor service functions ─────────────────────────────────
 export const getVendors              = () => api.get("/vendors");
 export const getVendorById           = (id) => api.get(`/vendors/${id}`);
+export const createVendor            = (data) => api.post("/vendors", data);
 
 // ── Product service functions ────────────────────────────────
 export const getProducts             = () => api.get("/products");

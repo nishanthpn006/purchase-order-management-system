@@ -1,6 +1,7 @@
 package com.poms.backend.controller;
 
 import com.poms.backend.config.OpenApiConfig;
+import com.poms.backend.dto.CreateVendorRequest;
 import com.poms.backend.entity.Vendor;
 import com.poms.backend.service.VendorService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -78,5 +79,38 @@ public class VendorController {
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", "Vendor not found")));
+    }
+
+    /**
+     * POST /api/vendors
+     * Creates a new vendor record.
+     * Allowed roles: ADMIN, MANAGER.
+     */
+    @PostMapping
+    @Operation(
+            summary = "Create a new vendor",
+            description = "Protected endpoint. Creates a new supplier vendor profile. Allowed roles: ADMIN, MANAGER."
+    )
+    @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Vendor created successfully",
+                    content = @Content(schema = @Schema(implementation = Vendor.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Validation error on request fields"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Missing or invalid JWT Bearer token"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - Only ADMIN and MANAGER roles can create vendors")
+    })
+    public ResponseEntity<?> createVendor(@RequestBody CreateVendorRequest request) {
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Request body is required"));
+        }
+        try {
+            Vendor created = vendorService.createVendor(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 }

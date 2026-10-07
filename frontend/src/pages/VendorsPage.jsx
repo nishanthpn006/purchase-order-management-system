@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, UserPlus, ExternalLink, RefreshCw, X, Plus } from "lucide-react";
-import { getVendors, getVendorById } from "../services/api";
+import { getVendors, getVendorById, createVendor } from "../services/api";
 import StatusBadge from "../components/StatusBadge";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
@@ -13,6 +13,16 @@ function fmtDate(date) {
   });
 }
 
+const initialCreateForm = {
+  vendorName: "",
+  contactPerson: "",
+  email: "",
+  phone: "",
+  address: "",
+  gstNumber: "",
+  status: "Active",
+};
+
 function VendorsPage() {
   const [vendors, setVendors]               = useState([]);
   const [loading, setLoading]               = useState(true);
@@ -24,6 +34,68 @@ function VendorsPage() {
   const [detailLoading, setDetailLoading]   = useState(false);
   const [refreshKey, setRefreshKey]         = useState(0);
   const [selectedRows, setSelectedRows]     = useState(new Set());
+
+  // Create Vendor modal state
+  const [isCreateOpen, setIsCreateOpen]         = useState(false);
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError]           = useState("");
+  const [successMsg, setSuccessMsg]             = useState("");
+  const [createForm, setCreateForm]             = useState(initialCreateForm);
+
+  const handleOpenCreate = () => {
+    setCreateForm(initialCreateForm);
+    setCreateError("");
+    setIsCreateOpen(true);
+  };
+
+  const handleCreateSubmit = async (e) => {
+    e.preventDefault();
+    setCreateError("");
+
+    const trimmedName = createForm.vendorName?.trim();
+    if (!trimmedName) {
+      setCreateError("Vendor name is required.");
+      return;
+    }
+
+    if (createForm.email && createForm.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(createForm.email.trim())) {
+        setCreateError("Please enter a valid email address.");
+        return;
+      }
+    }
+
+    setCreateSubmitting(true);
+    try {
+      const payload = {
+        vendorName: trimmedName,
+        contactPerson: createForm.contactPerson?.trim() || null,
+        email: createForm.email?.trim() || null,
+        phone: createForm.phone?.trim() || null,
+        address: createForm.address?.trim() || null,
+        gstNumber: createForm.gstNumber?.trim() || null,
+        status: createForm.status || "Active",
+      };
+
+      const res = await createVendor(payload);
+      const created = res.data;
+      setSuccessMsg(`Vendor "${created.vendorName || created.vendor_name || trimmedName}" created successfully.`);
+      setIsCreateOpen(false);
+      setCreateForm(initialCreateForm);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        (err.response?.status === 403
+          ? "Access denied: Only Admin and Manager roles can add vendors."
+          : "Failed to create vendor. Please check inputs.");
+      setCreateError(msg);
+    } finally {
+      setCreateSubmitting(false);
+    }
+  };
 
   const handleRefresh = () => {
     setLoading(true);
@@ -146,13 +218,47 @@ function VendorsPage() {
               <RefreshCw size={13} />
               <span>Refresh</span>
             </button>
-            <button className="btn btn-primary btn-sm">
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={handleOpenCreate}
+              id="add-vendor-btn"
+              title="Add a new supplier vendor"
+            >
               <UserPlus size={14} />
               <span>Add Vendor</span>
             </button>
           </div>
         </div>
       </div>
+
+      {successMsg && (
+        <div
+          style={{
+            background: "var(--success-bg)",
+            border: "1px solid var(--success-border)",
+            borderRadius: "var(--radius)",
+            padding: "9px 12px",
+            color: "var(--success)",
+            fontSize: "0.8rem",
+            marginBottom: 12,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+          role="status"
+        >
+          <span>{successMsg}</span>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm btn-icon"
+            style={{ border: "none", color: "inherit", height: "auto", padding: 0 }}
+            onClick={() => setSuccessMsg("")}
+            aria-label="Dismiss message"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Segmented Status Filter Tabs */}
       <div style={{ marginBottom: 12 }}>
@@ -397,6 +503,190 @@ function VendorsPage() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CREATE VENDOR MODAL ──────────────────────────────── */}
+      {isCreateOpen && (
+        <div
+          className="modal-overlay"
+          onClick={() => !createSubmitting && setIsCreateOpen(false)}
+        >
+          <div
+            className="modal-dialog"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-vendor-title"
+          >
+            <div className="modal-header">
+              <div id="create-vendor-title" className="modal-title">
+                Add New Vendor
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm btn-icon"
+                onClick={() => setIsCreateOpen(false)}
+                disabled={createSubmitting}
+                aria-label="Close"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateSubmit}>
+              <div className="modal-body">
+                {createError && (
+                  <div
+                    style={{
+                      background: "var(--danger-bg)",
+                      border: "1px solid var(--danger-border)",
+                      borderRadius: "var(--radius)",
+                      padding: "9px 12px",
+                      color: "var(--danger)",
+                      fontSize: "0.8rem",
+                      marginBottom: 14,
+                    }}
+                    role="alert"
+                  >
+                    {createError}
+                  </div>
+                )}
+
+                <div className="modal-section-title">Vendor Information</div>
+                <div className="form-grid">
+                  <div className="form-group form-group-full">
+                    <label htmlFor="vendor-name-input">Vendor Name *</label>
+                    <input
+                      id="vendor-name-input"
+                      type="text"
+                      required
+                      placeholder="e.g. Acme Supplies Ltd"
+                      value={createForm.vendorName}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, vendorName: e.target.value })
+                      }
+                      disabled={createSubmitting}
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="vendor-contact-input">Contact Person</label>
+                    <input
+                      id="vendor-contact-input"
+                      type="text"
+                      placeholder="e.g. Alice Smith"
+                      value={createForm.contactPerson}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, contactPerson: e.target.value })
+                      }
+                      disabled={createSubmitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="vendor-email-input">Email</label>
+                    <input
+                      id="vendor-email-input"
+                      type="email"
+                      placeholder="e.g. contact@acme.com"
+                      value={createForm.email}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, email: e.target.value })
+                      }
+                      disabled={createSubmitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="vendor-phone-input">Phone</label>
+                    <input
+                      id="vendor-phone-input"
+                      type="tel"
+                      placeholder="e.g. 9876543210"
+                      value={createForm.phone}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, phone: e.target.value })
+                      }
+                      disabled={createSubmitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="vendor-gst-input">GST Number</label>
+                    <input
+                      id="vendor-gst-input"
+                      type="text"
+                      placeholder="e.g. 29ABCDE1234F1Z5"
+                      value={createForm.gstNumber}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, gstNumber: e.target.value })
+                      }
+                      disabled={createSubmitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="vendor-status-select">Status *</label>
+                    <select
+                      id="vendor-status-select"
+                      value={createForm.status}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, status: e.target.value })
+                      }
+                      disabled={createSubmitting}
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group form-group-full">
+                    <label htmlFor="vendor-address-input">Registered Address</label>
+                    <textarea
+                      id="vendor-address-input"
+                      rows="2"
+                      placeholder="e.g. 123 Industrial Way, Tech Park, Bangalore"
+                      value={createForm.address}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, address: e.target.value })
+                      }
+                      disabled={createSubmitting}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setIsCreateOpen(false)}
+                  disabled={createSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  disabled={createSubmitting}
+                >
+                  {createSubmitting ? (
+                    <>
+                      <RefreshCw size={13} className="spin" />
+                      <span>Saving…</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={14} />
+                      <span>Create Vendor</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
