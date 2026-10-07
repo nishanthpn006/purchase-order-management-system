@@ -131,6 +131,9 @@ public class SecurityConfig {
                 // Product creation restricted to Admin and Manager roles
                 .requestMatchers(HttpMethod.POST, "/api/products")
                     .hasAnyRole("ADMIN", "MANAGER")
+                // Product update restricted to Admin and Manager roles
+                .requestMatchers(HttpMethod.PUT, "/api/products/*", "/api/products/**")
+                    .hasAnyRole("ADMIN", "MANAGER")
                 // All other endpoints require a valid JWT
                 .anyRequest().authenticated()
             )

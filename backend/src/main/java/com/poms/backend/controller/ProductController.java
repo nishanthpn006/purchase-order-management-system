@@ -2,6 +2,7 @@ package com.poms.backend.controller;
 
 import com.poms.backend.config.OpenApiConfig;
 import com.poms.backend.dto.CreateProductRequest;
+import com.poms.backend.dto.UpdateProductRequest;
 import com.poms.backend.entity.Product;
 import com.poms.backend.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/products")
@@ -109,6 +111,49 @@ public class ProductController {
         try {
             Product created = productService.createProduct(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * PUT /api/products/:id
+     * Updates an existing product record.
+     * Allowed roles: ADMIN, MANAGER.
+     */
+    @PutMapping("/{id}")
+    @Operation(
+            summary = "Update an existing product",
+            description = "Protected endpoint. Updates specifications, category, pricing, stock, or vendor assignment of an existing product in the catalog. "
+                    + "ROLE RESTRICTION: Only users with ADMIN or MANAGER role are authorized. Users with EMPLOYEE role will receive HTTP 403 Forbidden."
+    )
+    @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Product updated successfully",
+                    content = @Content(schema = @Schema(implementation = Product.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Validation error or invalid vendor"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Missing or invalid JWT Bearer token"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - Only ADMIN and MANAGER roles can update products"),
+            @ApiResponse(responseCode = "404", description = "Product not found with specified ID")
+    })
+    public ResponseEntity<?> updateProduct(
+            @Parameter(description = "Primary key ID of the product to update", required = true, example = "1")
+            @PathVariable Integer id,
+            @RequestBody UpdateProductRequest request) {
+        if (id == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Product ID is required"));
+        }
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Request body is required"));
+        }
+        try {
+            Product updated = productService.updateProduct(id, request);
+            return ResponseEntity.ok(updated);
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

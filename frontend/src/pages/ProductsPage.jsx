@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Search, PackagePlus, RefreshCw, Plus, X } from "lucide-react";
-import { getProducts, getVendors, createProduct } from "../services/api";
+import { Search, PackagePlus, RefreshCw, Plus, X, Edit } from "lucide-react";
+import { getProducts, getVendors, createProduct, updateProduct } from "../services/api";
 import StatusBadge from "../components/StatusBadge";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
@@ -12,6 +12,18 @@ function fmtCurrency(amount) {
 }
 
 const initialCreateForm = {
+  vendorId: "",
+  productName: "",
+  category: "",
+  description: "",
+  unitPrice: "",
+  stockQuantity: 0,
+  unit: "",
+  status: "Available",
+};
+
+const initialEditForm = {
+  id: null,
   vendorId: "",
   productName: "",
   category: "",
@@ -38,6 +50,12 @@ function ProductsPage() {
   const [createError, setCreateError]           = useState("");
   const [successMsg, setSuccessMsg]             = useState("");
   const [createForm, setCreateForm]             = useState(initialCreateForm);
+
+  // Edit Product modal state
+  const [isEditOpen, setIsEditOpen]             = useState(false);
+  const [editSubmitting, setEditSubmitting]     = useState(false);
+  const [editError, setEditError]               = useState("");
+  const [editForm, setEditForm]                 = useState(initialEditForm);
 
   const handleRefresh = () => {
     setLoading(true);
@@ -110,6 +128,82 @@ function ProductsPage() {
     }
   };
 
+  const handleOpenEdit = (p) => {
+    setEditForm({
+      id: p.id,
+      vendorId: p.vendor_id ?? (p.vendorId || ""),
+      productName: p.rawProductName || (p.product_name !== "—" ? p.product_name : "") || "",
+      category: p.rawCategory || (p.category !== "—" ? p.category : "") || "",
+      description: p.rawDescription || (p.description !== "—" ? p.description : "") || "",
+      unitPrice: p.unit_price != null ? p.unit_price : "",
+      stockQuantity: p.stock_quantity != null ? p.stock_quantity : 0,
+      unit: p.rawUnit || (p.unit !== "—" ? p.unit : "") || "",
+      status: p.status || "Available",
+    });
+    setEditError("");
+    setIsEditOpen(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setEditError("");
+
+    const trimmedName = editForm.productName?.trim();
+    if (!trimmedName) {
+      setEditError("Product name is required.");
+      return;
+    }
+
+    if (!editForm.vendorId) {
+      setEditError("Please select a supplier vendor.");
+      return;
+    }
+
+    const priceNum = Number(editForm.unitPrice);
+    if (editForm.unitPrice === "" || isNaN(priceNum) || priceNum < 0) {
+      setEditError("Unit price must be a valid non-negative number.");
+      return;
+    }
+
+    const stockNum = Number(editForm.stockQuantity);
+    if (editForm.stockQuantity !== "" && (isNaN(stockNum) || stockNum < 0)) {
+      setEditError("Stock quantity cannot be negative.");
+      return;
+    }
+
+    setEditSubmitting(true);
+    try {
+      const payload = {
+        vendorId: Number(editForm.vendorId),
+        productName: trimmedName,
+        category: editForm.category?.trim() || null,
+        description: editForm.description?.trim() || null,
+        unitPrice: priceNum,
+        stockQuantity: isNaN(stockNum) ? 0 : Math.floor(stockNum),
+        unit: editForm.unit?.trim() || null,
+        status: editForm.status || "Available",
+      };
+
+      const res = await updateProduct(editForm.id, payload);
+      const updated = res.data;
+      setSuccessMsg(`Product "${updated.productName || updated.product_name || trimmedName}" updated successfully.`);
+      setIsEditOpen(false);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        (err.response?.status === 403
+          ? "Access denied: Only Admin and Manager roles can update products."
+          : err.response?.status === 404
+          ? "Product not found."
+          : "Failed to update product. Please check inputs.");
+      setEditError(msg);
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     let ignore = false;
     const load = async () => {
@@ -142,6 +236,10 @@ function ProductsPage() {
           stock_quantity: p.stockQuantity ?? p.stock_quantity ?? 0,
           unit: p.unit ?? "—",
           status: p.status || "Available",
+          rawProductName: p.productName || p.product_name || "",
+          rawCategory: p.category || "",
+          rawDescription: p.description || "",
+          rawUnit: p.unit || "",
         }));
 
         if (!ignore) {
@@ -381,6 +479,7 @@ function ProductsPage() {
                     <th style={{ textAlign: "right" }}>Unit Price</th>
                     <th>Unit</th>
                     <th>Status</th>
+                    <th style={{ textAlign: "right", width: 90 }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -404,6 +503,17 @@ function ProductsPage() {
                         <td className="table-num" style={{ fontWeight: 600 }}>{fmtCurrency(p.unit_price)}</td>
                         <td className="table-cell-muted">{p.unit ?? "—"}</td>
                         <td><StatusBadge status={p.status} /></td>
+                        <td style={{ textAlign: "right" }}>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => handleOpenEdit(p)}
+                            title="Edit Product"
+                            style={{ gap: 4, padding: "3px 8px" }}
+                          >
+                            <Edit size={12} /> Edit
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
@@ -631,6 +741,215 @@ function ProductsPage() {
                     <>
                       <PackagePlus size={14} />
                       <span>Create Product</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── EDIT PRODUCT MODAL ────────────────────────────────── */}
+      {isEditOpen && (
+        <div
+          className="modal-overlay"
+          onClick={() => !editSubmitting && setIsEditOpen(false)}
+        >
+          <div
+            className="modal-dialog modal-dialog-lg"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-product-title"
+          >
+            <div className="modal-header">
+              <div id="edit-product-title" className="modal-title">
+                Edit Product
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm btn-icon"
+                onClick={() => setIsEditOpen(false)}
+                disabled={editSubmitting}
+                aria-label="Close"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit}>
+              <div className="modal-body">
+                {editError && (
+                  <div
+                    style={{
+                      background: "var(--danger-bg)",
+                      border: "1px solid var(--danger-border)",
+                      borderRadius: "var(--radius)",
+                      padding: "9px 12px",
+                      color: "var(--danger)",
+                      fontSize: "0.8rem",
+                      marginBottom: 14,
+                    }}
+                    role="alert"
+                  >
+                    {editError}
+                  </div>
+                )}
+
+                <div className="modal-section-title">Product Details</div>
+                <div className="form-grid">
+                  <div className="form-group form-group-full">
+                    <label htmlFor="edit-product-name-input">Product Name *</label>
+                    <input
+                      id="edit-product-name-input"
+                      type="text"
+                      required
+                      placeholder="e.g. Dell Latitude 5440"
+                      value={editForm.productName}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, productName: e.target.value })
+                      }
+                      disabled={editSubmitting}
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="edit-product-vendor-select">Vendor *</label>
+                    <select
+                      id="edit-product-vendor-select"
+                      required
+                      value={editForm.vendorId}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, vendorId: e.target.value })
+                      }
+                      disabled={editSubmitting}
+                    >
+                      <option value="">Select a vendor…</option>
+                      {vendors.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.vendorName || v.vendor_name || `Vendor #${v.id}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="edit-product-category-input">Category</label>
+                    <input
+                      id="edit-product-category-input"
+                      type="text"
+                      placeholder="e.g. Laptop, Monitor, Accessories"
+                      value={editForm.category}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, category: e.target.value })
+                      }
+                      disabled={editSubmitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="edit-product-price-input">Unit Price (₹) *</label>
+                    <input
+                      id="edit-product-price-input"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      placeholder="e.g. 55000.00"
+                      value={editForm.unitPrice}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, unitPrice: e.target.value })
+                      }
+                      disabled={editSubmitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="edit-product-stock-input">Stock Quantity</label>
+                    <input
+                      id="edit-product-stock-input"
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="e.g. 10"
+                      value={editForm.stockQuantity}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, stockQuantity: e.target.value })
+                      }
+                      disabled={editSubmitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="edit-product-unit-input">Unit of Measure</label>
+                    <input
+                      id="edit-product-unit-input"
+                      type="text"
+                      placeholder="e.g. Piece, Box, Set"
+                      value={editForm.unit}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, unit: e.target.value })
+                      }
+                      disabled={editSubmitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="edit-product-status-select">Status *</label>
+                    <select
+                      id="edit-product-status-select"
+                      value={editForm.status}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, status: e.target.value })
+                      }
+                      disabled={editSubmitting}
+                    >
+                      <option value="Available">Available</option>
+                      <option value="Unavailable">Unavailable</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group form-group-full">
+                    <label htmlFor="edit-product-desc-input">Description</label>
+                    <textarea
+                      id="edit-product-desc-input"
+                      rows="2"
+                      placeholder="e.g. 14 inch business laptop with 16GB RAM and 512GB SSD"
+                      value={editForm.description}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, description: e.target.value })
+                      }
+                      disabled={editSubmitting}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setIsEditOpen(false)}
+                  disabled={editSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  disabled={editSubmitting}
+                >
+                  {editSubmitting ? (
+                    <>
+                      <RefreshCw size={13} className="spin" />
+                      <span>Saving…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Edit size={14} />
+                      <span>Save Changes</span>
                     </>
                   )}
                 </button>
