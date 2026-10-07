@@ -125,6 +125,9 @@ public class SecurityConfig {
                 // Status update restricted to Admin and Manager roles
                 .requestMatchers(HttpMethod.PATCH, "/api/purchase-orders/*/status")
                     .hasAnyRole("ADMIN", "MANAGER")
+                // Vendor creation restricted to Admin and Manager roles
+                .requestMatchers(HttpMethod.POST, "/api/vendors")
+                    .hasAnyRole("ADMIN", "MANAGER")
                 // All other endpoints require a valid JWT
                 .anyRequest().authenticated()
             )

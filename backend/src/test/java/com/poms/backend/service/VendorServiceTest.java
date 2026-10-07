@@ -1,5 +1,6 @@
 package com.poms.backend.service;
 
+import com.poms.backend.dto.CreateVendorRequest;
 import com.poms.backend.entity.Vendor;
 import com.poms.backend.repository.VendorRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -91,5 +92,223 @@ class VendorServiceTest {
 
         assertFalse(result.isPresent());
         verify(vendorRepository, times(1)).findById(999);
+    }
+
+    @Test
+    @DisplayName("saveVendor persists and returns saved vendor")
+    void saveVendor_Success_ReturnsSavedVendor() {
+        when(vendorRepository.save(sampleVendor)).thenReturn(sampleVendor);
+
+        Vendor result = vendorService.saveVendor(sampleVendor);
+
+        assertNotNull(result);
+        assertEquals("Acme Supplies Ltd", result.getVendorName());
+        verify(vendorRepository, times(1)).save(sampleVendor);
+    }
+
+    @Test
+    @DisplayName("createVendor successfully validates, creates, and persists vendor")
+    void createVendor_Success_PersistsAndReturnsVendor() {
+        CreateVendorRequest request = new CreateVendorRequest(
+                "Global Tech Solutions",
+                "Jane Doe",
+                "jane@globaltech.com",
+                "9123456780",
+                "456 Silicon Valley, Bangalore",
+                "29XYZAB1234C1Z9",
+                "Active"
+        );
+
+        when(vendorRepository.save(any(Vendor.class))).thenAnswer(invocation -> {
+            Vendor v = invocation.getArgument(0);
+            v.setId(10);
+            return v;
+        });
+
+        Vendor created = vendorService.createVendor(request);
+
+        assertNotNull(created);
+        assertEquals(10, created.getId());
+        assertEquals("Global Tech Solutions", created.getVendorName());
+        assertEquals("Jane Doe", created.getContactPerson());
+        assertEquals("jane@globaltech.com", created.getEmail());
+        assertEquals("9123456780", created.getPhone());
+        assertEquals("456 Silicon Valley, Bangalore", created.getAddress());
+        assertEquals("29XYZAB1234C1Z9", created.getGstNumber());
+        assertEquals("Active", created.getStatus());
+        assertNotNull(created.getCreatedAt());
+
+        verify(vendorRepository, times(1)).save(any(Vendor.class));
+    }
+
+    @Test
+    @DisplayName("createVendor sets default status to Active when status is omitted")
+    void createVendor_Success_WithDefaultStatusAndNullOptionalFields() {
+        CreateVendorRequest request = new CreateVendorRequest();
+        request.setVendorName("Minimal Supplies");
+
+        when(vendorRepository.save(any(Vendor.class))).thenAnswer(invocation -> {
+            Vendor v = invocation.getArgument(0);
+            v.setId(11);
+            return v;
+        });
+
+        Vendor created = vendorService.createVendor(request);
+
+        assertNotNull(created);
+        assertEquals("Minimal Supplies", created.getVendorName());
+        assertNull(created.getContactPerson());
+        assertNull(created.getEmail());
+        assertNull(created.getPhone());
+        assertNull(created.getAddress());
+        assertNull(created.getGstNumber());
+        assertEquals("Active", created.getStatus());
+        assertNotNull(created.getCreatedAt());
+
+        verify(vendorRepository, times(1)).save(any(Vendor.class));
+    }
+
+    @Test
+    @DisplayName("createVendor normalizes status to Inactive")
+    void createVendor_Success_WithInactiveStatus() {
+        CreateVendorRequest request = new CreateVendorRequest();
+        request.setVendorName("Inactive Supplies");
+        request.setStatus("inactive");
+
+        when(vendorRepository.save(any(Vendor.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Vendor created = vendorService.createVendor(request);
+
+        assertEquals("Inactive", created.getStatus());
+        verify(vendorRepository, times(1)).save(any(Vendor.class));
+    }
+
+    @Test
+    @DisplayName("createVendor throws IllegalArgumentException when request is null")
+    void createVendor_NullRequest_ThrowsException() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                vendorService.createVendor(null)
+        );
+        assertEquals("Request body cannot be null", ex.getMessage());
+        verify(vendorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createVendor throws IllegalArgumentException when vendor name is null or blank")
+    void createVendor_BlankVendorName_ThrowsException() {
+        CreateVendorRequest request1 = new CreateVendorRequest();
+        request1.setVendorName(null);
+
+        IllegalArgumentException ex1 = assertThrows(IllegalArgumentException.class, () ->
+                vendorService.createVendor(request1)
+        );
+        assertEquals("Vendor name is required", ex1.getMessage());
+
+        CreateVendorRequest request2 = new CreateVendorRequest();
+        request2.setVendorName("   ");
+
+        IllegalArgumentException ex2 = assertThrows(IllegalArgumentException.class, () ->
+                vendorService.createVendor(request2)
+        );
+        assertEquals("Vendor name is required", ex2.getMessage());
+
+        verify(vendorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createVendor throws IllegalArgumentException when vendor name exceeds 150 characters")
+    void createVendor_VendorNameTooLong_ThrowsException() {
+        CreateVendorRequest request = new CreateVendorRequest();
+        request.setVendorName("A".repeat(151));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                vendorService.createVendor(request)
+        );
+        assertEquals("Vendor name must not exceed 150 characters", ex.getMessage());
+        verify(vendorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createVendor throws IllegalArgumentException when contact person exceeds 100 characters")
+    void createVendor_ContactPersonTooLong_ThrowsException() {
+        CreateVendorRequest request = new CreateVendorRequest();
+        request.setVendorName("Valid Name");
+        request.setContactPerson("B".repeat(101));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                vendorService.createVendor(request)
+        );
+        assertEquals("Contact person must not exceed 100 characters", ex.getMessage());
+        verify(vendorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createVendor throws IllegalArgumentException when email format is invalid")
+    void createVendor_InvalidEmailFormat_ThrowsException() {
+        CreateVendorRequest request = new CreateVendorRequest();
+        request.setVendorName("Valid Name");
+        request.setEmail("not-an-email");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                vendorService.createVendor(request)
+        );
+        assertEquals("Invalid email format", ex.getMessage());
+        verify(vendorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createVendor throws IllegalArgumentException when email exceeds 100 characters")
+    void createVendor_EmailTooLong_ThrowsException() {
+        CreateVendorRequest request = new CreateVendorRequest();
+        request.setVendorName("Valid Name");
+        request.setEmail("a".repeat(95) + "@example.com"); // > 100 chars
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                vendorService.createVendor(request)
+        );
+        assertEquals("Email must not exceed 100 characters", ex.getMessage());
+        verify(vendorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createVendor throws IllegalArgumentException when phone exceeds 20 characters")
+    void createVendor_PhoneTooLong_ThrowsException() {
+        CreateVendorRequest request = new CreateVendorRequest();
+        request.setVendorName("Valid Name");
+        request.setPhone("123456789012345678901"); // 21 chars
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                vendorService.createVendor(request)
+        );
+        assertEquals("Phone number must not exceed 20 characters", ex.getMessage());
+        verify(vendorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createVendor throws IllegalArgumentException when GST number exceeds 30 characters")
+    void createVendor_GstNumberTooLong_ThrowsException() {
+        CreateVendorRequest request = new CreateVendorRequest();
+        request.setVendorName("Valid Name");
+        request.setGstNumber("G".repeat(31));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                vendorService.createVendor(request)
+        );
+        assertEquals("GST number must not exceed 30 characters", ex.getMessage());
+        verify(vendorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createVendor throws IllegalArgumentException when status is invalid")
+    void createVendor_InvalidStatus_ThrowsException() {
+        CreateVendorRequest request = new CreateVendorRequest();
+        request.setVendorName("Valid Name");
+        request.setStatus("Pending");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                vendorService.createVendor(request)
+        );
+        assertEquals("Status must be either 'Active' or 'Inactive'", ex.getMessage());
+        verify(vendorRepository, never()).save(any());
     }
 }
