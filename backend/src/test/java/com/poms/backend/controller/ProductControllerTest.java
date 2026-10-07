@@ -1,6 +1,7 @@
 package com.poms.backend.controller;
 
 import com.poms.backend.dto.CreateProductRequest;
+import com.poms.backend.dto.UpdateProductRequest;
 import com.poms.backend.entity.Product;
 import com.poms.backend.service.ProductService;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -158,5 +160,109 @@ class ProductControllerTest {
         Map<?, ?> body = (Map<?, ?>) response.getBody();
         assertEquals("Request body is required", body.get("error"));
         verify(productService, never()).createProduct(any());
+    }
+
+    // ==========================================
+    // updateProduct Tests
+    // ==========================================
+
+    @Test
+    @DisplayName("updateProduct returns HTTP 200 OK on valid request")
+    void updateProduct_ValidRequest_ReturnsOk() {
+        UpdateProductRequest request = new UpdateProductRequest(
+                1,
+                "Updated Monitor",
+                "Monitor",
+                "Updated Description",
+                new BigDecimal("13500.00"),
+                30,
+                "Piece",
+                "Available"
+        );
+
+        when(productService.updateProduct(eq(1), any(UpdateProductRequest.class))).thenReturn(sampleProduct);
+
+        ResponseEntity<?> response = productController.updateProduct(1, request);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Product);
+        verify(productService, times(1)).updateProduct(1, request);
+    }
+
+    @Test
+    @DisplayName("updateProduct returns HTTP 404 Not Found when product does not exist")
+    void updateProduct_ProductNotFound_Returns404() {
+        UpdateProductRequest request = new UpdateProductRequest();
+        request.setProductName("Updated Monitor");
+
+        when(productService.updateProduct(eq(999), any(UpdateProductRequest.class)))
+                .thenThrow(new NoSuchElementException("Product not found with ID: 999"));
+
+        ResponseEntity<?> response = productController.updateProduct(999, request);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals("Product not found with ID: 999", body.get("error"));
+    }
+
+    @Test
+    @DisplayName("updateProduct returns HTTP 400 Bad Request when validation fails in service")
+    void updateProduct_ValidationError_ReturnsBadRequest() {
+        UpdateProductRequest request = new UpdateProductRequest();
+        request.setProductName("");
+
+        when(productService.updateProduct(eq(1), any(UpdateProductRequest.class)))
+                .thenThrow(new IllegalArgumentException("Product name is required"));
+
+        ResponseEntity<?> response = productController.updateProduct(1, request);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals("Product name is required", body.get("error"));
+    }
+
+    @Test
+    @DisplayName("updateProduct returns HTTP 400 Bad Request when vendor does not exist")
+    void updateProduct_VendorNotFound_ReturnsBadRequest() {
+        UpdateProductRequest request = new UpdateProductRequest();
+        request.setVendorId(999);
+
+        when(productService.updateProduct(eq(1), any(UpdateProductRequest.class)))
+                .thenThrow(new IllegalArgumentException("Vendor not found with ID: 999"));
+
+        ResponseEntity<?> response = productController.updateProduct(1, request);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals("Vendor not found with ID: 999", body.get("error"));
+    }
+
+    @Test
+    @DisplayName("updateProduct returns HTTP 400 Bad Request when ID is null")
+    void updateProduct_NullId_ReturnsBadRequest() {
+        UpdateProductRequest request = new UpdateProductRequest();
+
+        ResponseEntity<?> response = productController.updateProduct(null, request);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals("Product ID is required", body.get("error"));
+        verify(productService, never()).updateProduct(any(Integer.class), any());
+    }
+
+    @Test
+    @DisplayName("updateProduct returns HTTP 400 Bad Request when request body is null")
+    void updateProduct_NullRequest_ReturnsBadRequest() {
+        ResponseEntity<?> response = productController.updateProduct(1, null);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals("Request body is required", body.get("error"));
+        verify(productService, never()).updateProduct(any(Integer.class), any());
     }
 }

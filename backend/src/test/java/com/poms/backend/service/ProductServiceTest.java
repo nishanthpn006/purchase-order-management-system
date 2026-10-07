@@ -1,6 +1,7 @@
 package com.poms.backend.service;
 
 import com.poms.backend.dto.CreateProductRequest;
+import com.poms.backend.dto.UpdateProductRequest;
 import com.poms.backend.entity.Product;
 import com.poms.backend.repository.ProductRepository;
 import com.poms.backend.repository.VendorRepository;
@@ -16,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -376,6 +378,319 @@ class ProductServiceTest {
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
                 productService.createProduct(request)
+        );
+        assertEquals("Status must be either 'Available' or 'Unavailable'", ex.getMessage());
+        verify(productRepository, never()).save(any());
+    }
+
+    // ==========================================
+    // updateProduct Tests
+    // ==========================================
+
+    @Test
+    @DisplayName("updateProduct successfully updates all fields, preserving ID and createdAt")
+    void updateProduct_Success_UpdatesAllFields() {
+        LocalDateTime originalCreatedAt = sampleProduct.getCreatedAt();
+        UpdateProductRequest request = new UpdateProductRequest(
+                20,
+                "Updated Chair Deluxe",
+                "Seating",
+                "Deluxe high-back mesh chair",
+                new BigDecimal("8999.00"),
+                50,
+                "Units",
+                "Unavailable"
+        );
+
+        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+        when(vendorRepository.existsById(20)).thenReturn(true);
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Product updated = productService.updateProduct(1, request);
+
+        assertNotNull(updated);
+        assertEquals(1, updated.getId());
+        assertEquals(originalCreatedAt, updated.getCreatedAt());
+        assertEquals(20, updated.getVendorId());
+        assertEquals("Updated Chair Deluxe", updated.getProductName());
+        assertEquals("Seating", updated.getCategory());
+        assertEquals("Deluxe high-back mesh chair", updated.getDescription());
+        assertEquals(new BigDecimal("8999.00"), updated.getUnitPrice());
+        assertEquals(50, updated.getStockQuantity());
+        assertEquals("Units", updated.getUnit());
+        assertEquals("Unavailable", updated.getStatus());
+
+        verify(productRepository, times(1)).save(sampleProduct);
+    }
+
+    @Test
+    @DisplayName("updateProduct with Long ID successfully updates product")
+    void updateProduct_Success_WithLongId() {
+        UpdateProductRequest request = new UpdateProductRequest(
+                20,
+                "Updated Chair",
+                "Furniture",
+                "Desc",
+                new BigDecimal("5000.00"),
+                10,
+                "Piece",
+                "Available"
+        );
+
+        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+        when(vendorRepository.existsById(20)).thenReturn(true);
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Product updated = productService.updateProduct(1L, request);
+
+        assertNotNull(updated);
+        assertEquals("Updated Chair", updated.getProductName());
+        verify(productRepository, times(1)).save(sampleProduct);
+    }
+
+    @Test
+    @DisplayName("updateProduct normalizes status case to 'Available' or 'Unavailable'")
+    void updateProduct_Success_NormalizesStatusCase() {
+        UpdateProductRequest request = new UpdateProductRequest(
+                10,
+                "Case Normalization Test",
+                "Furniture",
+                "Desc",
+                new BigDecimal("100.00"),
+                5,
+                "Piece",
+                "unavailable"
+        );
+
+        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+        when(vendorRepository.existsById(10)).thenReturn(true);
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Product updated = productService.updateProduct(1, request);
+
+        assertEquals("Unavailable", updated.getStatus());
+    }
+
+    @Test
+    @DisplayName("updateProduct throws NoSuchElementException when product is not found")
+    void updateProduct_ProductNotFound_ThrowsException() {
+        UpdateProductRequest request = new UpdateProductRequest(
+                10,
+                "Non-existent Product",
+                "Furniture",
+                "Desc",
+                new BigDecimal("100.00"),
+                5,
+                "Piece",
+                "Available"
+        );
+
+        when(productRepository.findById(999)).thenReturn(Optional.empty());
+
+        NoSuchElementException ex = assertThrows(NoSuchElementException.class, () ->
+                productService.updateProduct(999, request)
+        );
+        assertEquals("Product not found with ID: 999", ex.getMessage());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateProduct throws IllegalArgumentException when ID is null")
+    void updateProduct_NullId_ThrowsException() {
+        UpdateProductRequest request = new UpdateProductRequest();
+
+        IllegalArgumentException ex1 = assertThrows(IllegalArgumentException.class, () ->
+                productService.updateProduct((Integer) null, request)
+        );
+        assertEquals("Product ID is required", ex1.getMessage());
+
+        IllegalArgumentException ex2 = assertThrows(IllegalArgumentException.class, () ->
+                productService.updateProduct((Long) null, request)
+        );
+        assertEquals("Product ID is required", ex2.getMessage());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateProduct throws IllegalArgumentException when request body is null")
+    void updateProduct_NullRequest_ThrowsException() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                productService.updateProduct(1, null)
+        );
+        assertEquals("Request body cannot be null", ex.getMessage());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateProduct throws IllegalArgumentException when product name is null or blank")
+    void updateProduct_BlankProductName_ThrowsException() {
+        UpdateProductRequest request = new UpdateProductRequest();
+        request.setProductName("   ");
+
+        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                productService.updateProduct(1, request)
+        );
+        assertEquals("Product name is required", ex.getMessage());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateProduct throws IllegalArgumentException when product name exceeds 150 chars")
+    void updateProduct_ProductNameTooLong_ThrowsException() {
+        UpdateProductRequest request = new UpdateProductRequest();
+        request.setProductName("A".repeat(151));
+
+        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                productService.updateProduct(1, request)
+        );
+        assertEquals("Product name must not exceed 150 characters", ex.getMessage());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateProduct throws IllegalArgumentException when vendor ID is null")
+    void updateProduct_NullVendorId_ThrowsException() {
+        UpdateProductRequest request = new UpdateProductRequest();
+        request.setProductName("Valid Name");
+        request.setVendorId(null);
+
+        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                productService.updateProduct(1, request)
+        );
+        assertEquals("Vendor ID is required", ex.getMessage());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateProduct throws IllegalArgumentException when vendor does not exist")
+    void updateProduct_VendorNotFound_ThrowsException() {
+        UpdateProductRequest request = new UpdateProductRequest();
+        request.setProductName("Valid Name");
+        request.setVendorId(999);
+
+        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+        when(vendorRepository.existsById(999)).thenReturn(false);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                productService.updateProduct(1, request)
+        );
+        assertEquals("Vendor not found with ID: 999", ex.getMessage());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateProduct throws IllegalArgumentException when unit price is null")
+    void updateProduct_NullUnitPrice_ThrowsException() {
+        UpdateProductRequest request = new UpdateProductRequest();
+        request.setProductName("Valid Name");
+        request.setVendorId(10);
+        request.setUnitPrice(null);
+
+        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+        when(vendorRepository.existsById(10)).thenReturn(true);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                productService.updateProduct(1, request)
+        );
+        assertEquals("Unit price is required", ex.getMessage());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateProduct throws IllegalArgumentException when unit price is negative")
+    void updateProduct_NegativeUnitPrice_ThrowsException() {
+        UpdateProductRequest request = new UpdateProductRequest();
+        request.setProductName("Valid Name");
+        request.setVendorId(10);
+        request.setUnitPrice(new BigDecimal("-1.00"));
+
+        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+        when(vendorRepository.existsById(10)).thenReturn(true);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                productService.updateProduct(1, request)
+        );
+        assertEquals("Unit price cannot be negative", ex.getMessage());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateProduct throws IllegalArgumentException when stock quantity is negative")
+    void updateProduct_NegativeStockQuantity_ThrowsException() {
+        UpdateProductRequest request = new UpdateProductRequest();
+        request.setProductName("Valid Name");
+        request.setVendorId(10);
+        request.setUnitPrice(new BigDecimal("100.00"));
+        request.setStockQuantity(-10);
+
+        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+        when(vendorRepository.existsById(10)).thenReturn(true);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                productService.updateProduct(1, request)
+        );
+        assertEquals("Stock quantity cannot be negative", ex.getMessage());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateProduct throws IllegalArgumentException when category exceeds 100 chars")
+    void updateProduct_CategoryTooLong_ThrowsException() {
+        UpdateProductRequest request = new UpdateProductRequest();
+        request.setProductName("Valid Name");
+        request.setVendorId(10);
+        request.setUnitPrice(new BigDecimal("100.00"));
+        request.setCategory("C".repeat(101));
+
+        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+        when(vendorRepository.existsById(10)).thenReturn(true);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                productService.updateProduct(1, request)
+        );
+        assertEquals("Category must not exceed 100 characters", ex.getMessage());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateProduct throws IllegalArgumentException when unit exceeds 30 chars")
+    void updateProduct_UnitTooLong_ThrowsException() {
+        UpdateProductRequest request = new UpdateProductRequest();
+        request.setProductName("Valid Name");
+        request.setVendorId(10);
+        request.setUnitPrice(new BigDecimal("100.00"));
+        request.setUnit("U".repeat(31));
+
+        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+        when(vendorRepository.existsById(10)).thenReturn(true);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                productService.updateProduct(1, request)
+        );
+        assertEquals("Unit must not exceed 30 characters", ex.getMessage());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateProduct throws IllegalArgumentException when status is invalid")
+    void updateProduct_InvalidStatus_ThrowsException() {
+        UpdateProductRequest request = new UpdateProductRequest();
+        request.setProductName("Valid Name");
+        request.setVendorId(10);
+        request.setUnitPrice(new BigDecimal("100.00"));
+        request.setStatus("Archived");
+
+        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+        when(vendorRepository.existsById(10)).thenReturn(true);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                productService.updateProduct(1, request)
         );
         assertEquals("Status must be either 'Available' or 'Unavailable'", ex.getMessage());
         verify(productRepository, never()).save(any());
