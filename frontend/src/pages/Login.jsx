@@ -68,8 +68,13 @@ function Login() {
   return (
     <div className="login-page">
       <form className="login-card" onSubmit={handleLogin} noValidate>
-        <h1>POMS</h1>
-        <p className="subtitle">Purchase Order Management System</p>
+        <div className="login-brand-header">
+          <div className="login-brand-badge" aria-hidden="true">
+            P
+          </div>
+          <h1>POMS</h1>
+          <p className="subtitle">Enterprise Procurement Management System</p>
+        </div>
 
         {error && (
           <div

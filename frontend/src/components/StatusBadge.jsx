@@ -19,7 +19,12 @@ const STATUS_CLASS = {
 function StatusBadge({ status }) {
   if (!status) return null;
   const cls = STATUS_CLASS[status] ?? "badge-inactive";
-  return <span className={`badge ${cls}`}>{status}</span>;
+  return (
+    <span className={`badge ${cls}`}>
+      <span className="badge-dot" aria-hidden="true" />
+      {status}
+    </span>
+  );
 }
 
 export default StatusBadge;
