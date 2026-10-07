@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   Users, Package, ShoppingCart, Boxes,
-  AlertTriangle, Clock, ShoppingBag,
+  AlertTriangle, AlertCircle,
 } from "lucide-react";
-import { useAuth } from "../context/useAuth";
 import {
   getDashboardStats,
   getPurchaseOrders,
@@ -33,11 +33,11 @@ function KPICard({ icon: Icon, iconClass, value, label, desc, loading }) {
   return (
     <div className="kpi-card">
       <div className={`kpi-icon ${iconClass}`}>
-        <Icon size={22} />
+        <Icon size={17} />
       </div>
       <div className="kpi-body">
-        <div className="kpi-value">{loading ? "—" : value}</div>
         <div className="kpi-label">{label}</div>
+        <div className="kpi-value">{loading ? "—" : value}</div>
         <div className="kpi-desc">{desc}</div>
       </div>
     </div>
@@ -46,8 +46,6 @@ function KPICard({ icon: Icon, iconClass, value, label, desc, loading }) {
 
 /* ── Dashboard Page ──────────────────────────────────────── */
 function Dashboard() {
-  const { user } = useAuth();
-
   const [stats, setStats]         = useState(null);
   const [orders, setOrders]       = useState([]);
   const [inventory, setInventory] = useState([]);
@@ -127,14 +125,34 @@ function Dashboard() {
 
   return (
     <>
-      {/* Welcome banner */}
+      {/* Page Header */}
+      <div className="page-header">
+        <div className="page-header-row">
+          <div>
+            <div className="page-title">Procurement Operations</div>
+            <div className="page-subtitle">
+              Real-time procurement KPIs, approval queues, and warehouse stock monitoring.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Operational Status Banner (Reference A Pattern) */}
       <div className="welcome-banner">
         <div className="welcome-text">
-          <h2>Welcome back, {user?.name || user?.fullName || "Administrator"} 👋</h2>
-          <p>Here&apos;s an overview of your procurement operations.</p>
+          <h2>
+            {(stats?.pending_orders || 0) + (stats?.low_stock || 0) > 0
+              ? `${(stats?.pending_orders || 0) + (stats?.low_stock || 0)} Operational items require attention`
+              : "Procurement operations running normally"}
+          </h2>
+          <p>
+            {(stats?.pending_orders || 0) + (stats?.low_stock || 0) > 0
+              ? `${stats?.pending_orders ?? 0} purchase orders pending approval · ${stats?.low_stock ?? 0} inventory items at or below reorder threshold.`
+              : "All purchase orders processed and inventory stocks within safe thresholds."}
+          </p>
         </div>
         <div className="welcome-icon">
-          <ShoppingBag />
+          <AlertCircle size={16} />
         </div>
       </div>
 
@@ -159,15 +177,15 @@ function Dashboard() {
           iconClass="kpi-icon-blue"
           value={stats?.total_vendors}
           label="Total Vendors"
-          desc="Active supplier accounts"
+          desc="Registered supplier records"
           loading={loading}
         />
         <KPICard
           icon={Package}
           iconClass="kpi-icon-green"
           value={stats?.total_products}
-          label="Total Products"
-          desc="Items in product catalog"
+          label="Catalog Products"
+          desc="Active catalog item SKUs"
           loading={loading}
         />
         <KPICard
@@ -175,15 +193,15 @@ function Dashboard() {
           iconClass="kpi-icon-amber"
           value={stats?.total_orders}
           label="Purchase Orders"
-          desc={`${stats?.pending_orders ?? "—"} pending approval`}
+          desc={`${stats?.pending_orders ?? "—"} orders awaiting review`}
           loading={loading}
         />
         <KPICard
           icon={Boxes}
           iconClass="kpi-icon-cyan"
           value={stats?.total_inventory}
-          label="Inventory Items"
-          desc={`${stats?.low_stock ?? "—"} low stock alerts`}
+          label="Inventory Stock"
+          desc={`${stats?.low_stock ?? "—"} reorder alerts flagged`}
           loading={loading}
         />
       </div>
@@ -193,12 +211,14 @@ function Dashboard() {
 
         {/* Recent Purchase Orders */}
         <div className="card">
-          <div className="card-header" style={{ paddingBottom: 14 }}>
+          <div className="card-header">
             <div>
               <div className="card-title">Recent Purchase Orders</div>
-              <div className="card-subtitle">Latest procurement activity</div>
+              <div className="card-subtitle">Latest procurement order activities</div>
             </div>
-            <Clock size={17} color="var(--text-muted)" />
+            <Link to="/purchase-orders" className="btn btn-ghost btn-sm">
+              View All
+            </Link>
           </div>
 
           {loading ? (
@@ -212,7 +232,7 @@ function Dashboard() {
                   <tr>
                     <th>PO Number</th>
                     <th>Vendor</th>
-                    <th>Amount</th>
+                    <th style={{ textAlign: "right" }}>Amount</th>
                     <th>Status</th>
                   </tr>
                 </thead>
@@ -223,7 +243,7 @@ function Dashboard() {
                       <td style={{ maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {po.vendor_name}
                       </td>
-                      <td style={{ fontWeight: 600 }}>{fmtCurrency(po.total_amount)}</td>
+                      <td className="table-num" style={{ fontWeight: 600 }}>{fmtCurrency(po.total_amount)}</td>
                       <td><StatusBadge status={po.status} /></td>
                     </tr>
                   ))}
@@ -233,14 +253,16 @@ function Dashboard() {
           )}
         </div>
 
-        {/* Inventory Summary */}
+        {/* Inventory Attention */}
         <div className="card">
-          <div className="card-header" style={{ paddingBottom: 14 }}>
+          <div className="card-header">
             <div>
-              <div className="card-title">Inventory Summary</div>
-              <div className="card-subtitle">Current stock levels</div>
+              <div className="card-title">Inventory Attention</div>
+              <div className="card-subtitle">Stock levels and reorder thresholds</div>
             </div>
-            <Boxes size={17} color="var(--text-muted)" />
+            <Link to="/inventory" className="btn btn-ghost btn-sm">
+              View All
+            </Link>
           </div>
 
           {loading ? (
@@ -253,7 +275,8 @@ function Dashboard() {
                 <thead>
                   <tr>
                     <th>Product</th>
-                    <th style={{ textAlign: "center" }}>Qty</th>
+                    <th style={{ textAlign: "center" }}>In Stock</th>
+                    <th style={{ textAlign: "center" }}>Reorder Level</th>
                     <th>Status</th>
                   </tr>
                 </thead>
@@ -262,10 +285,11 @@ function Dashboard() {
                     const stockStatus = getStockStatus(item.quantity_in_stock, item.reorder_level);
                     return (
                       <tr key={item.id}>
-                        <td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="table-cell-bold">
                           {item.product_name}
                         </td>
                         <td style={{ textAlign: "center", fontWeight: 600 }}>{item.quantity_in_stock}</td>
+                        <td style={{ textAlign: "center" }} className="table-cell-muted">{item.reorder_level}</td>
                         <td><StatusBadge status={stockStatus} /></td>
                       </tr>
                     );

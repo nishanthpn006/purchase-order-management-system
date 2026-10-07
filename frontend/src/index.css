@@ -1,96 +1,158 @@
 /* ============================================================
-   POMS — Global Design System
+   POMS Enterprise Design System Tokens
    Purchase Order Management System
+   Structure: Reference C (GreenTech Order Management)
+   Color & Polish: Reference A (NexaERP)
    ============================================================ */
 
-/* ── Google Fonts ──────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* ── Typography (Google Fonts: Inter) ───────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* ── CSS Variables ─────────────────────────────────────────── */
+/* ── Design System Variables ────────────────────────────────── */
 :root {
-  /* Primary */
-  --primary: #2563eb;
-  --primary-dark: #1d4ed8;
-  --primary-light: #eff6ff;
-  --primary-border: #bfdbfe;
+  /* ── Reference A Primary Accent (Purple / Indigo) ──────────── */
+  --primary: #5B45D6;
+  --primary-hover: #4C38BD;
+  --primary-dark: #4C38BD;
+  --primary-soft: #F0EDFF;
+  --primary-light: #F0EDFF;
+  --primary-border: #D8D1FC;
 
-  /* Neutrals */
-  --bg: #f1f5f9;
-  --surface: #ffffff;
-  --border: #e2e8f0;
-  --border-light: #f1f5f9;
+  /* ── Light Neutral Backgrounds & Canvas ────────────────────── */
+  --background: #F7F8FA;
+  --bg-app: #F7F8FA;
+  --bg: #F7F8FA;
+  --surface: #FFFFFF;
+  --surface-subtle: #F9FAFB;
+  --surface-muted: #F1F3F5;
+  --surface-hover: #F8F9FA;
+  --surface-active: #F0EDFF;
 
-  /* Text */
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  /* ── Dark Charcoal Typography ──────────────────────────────── */
+  --text-primary: #17191F;
+  --text-secondary: #656B76;
+  --text-muted: #8A909A;
+  --text-dim: #A0A5AE;
+  --text-inverse: #FFFFFF;
 
-  /* Sidebar */
-  --sidebar-bg: #0f172a;
-  --sidebar-border: #1e293b;
-  --sidebar-text: #94a3b8;
-  --sidebar-text-hover: #f1f5f9;
-  --sidebar-active-bg: rgba(37, 99, 235, 0.15);
-  --sidebar-active-text: #60a5fa;
-  --sidebar-active-border: #2563eb;
-  --sidebar-width: 240px;
+  /* ── Subtle Neutral Gray Borders ───────────────────────────── */
+  --border: #E5E7EB;
+  --border-light: #F1F3F5;
+  --border-strong: #D1D5DB;
+  --border-focus: #5B45D6;
 
-  /* Navbar */
-  --navbar-height: 64px;
+  /* ── Light Enterprise Sidebar Tokens (Reference C) ─────────── */
+  --sidebar-width: 250px;
+  --sidebar-bg: #FFFFFF;
+  --sidebar-border: #E5E7EB;
+  --sidebar-text: #667085;
+  --sidebar-text-hover: #17191F;
+  --sidebar-active-bg: #F3F0FF;
+  --sidebar-active-text: #17191F;
+  --sidebar-active-border: #5B45D6;
 
-  /* Status */
-  --success: #16a34a;
-  --success-bg: #f0fdf4;
-  --success-border: #bbf7d0;
-  --warning: #d97706;
-  --warning-bg: #fffbeb;
-  --warning-border: #fde68a;
-  --danger: #dc2626;
-  --danger-bg: #fef2f2;
-  --danger-border: #fecaca;
-  --info: #0891b2;
-  --info-bg: #f0f9ff;
-  --info-border: #bae6fd;
+  /* ── Topbar (Navbar) ───────────────────────────────────────── */
+  --navbar-height: 52px;
+  --navbar-bg: #FFFFFF;
+  --navbar-border: #E5E7EB;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
-  --shadow-lg: 0 10px 15px rgba(0,0,0,0.08), 0 4px 6px rgba(0,0,0,0.04);
+  /* ── Subtle Semantic Scales ────────────────────────────────── */
+  --success: #16A34A;
+  --success-bg: #F0FDF4;
+  --success-border: #BBF7D0;
+  --success-text: #15803D;
 
-  /* Radii */
-  --radius-sm: 6px;
-  --radius: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --warning: #D97706;
+  --warning-bg: #FFFBEB;
+  --warning-border: #FDE68A;
+  --warning-text: #B45309;
 
-  /* Transitions */
-  --transition: 150ms ease;
-  --transition-md: 200ms ease;
+  --danger: #DC2626;
+  --danger-bg: #FEF2F2;
+  --danger-border: #FECACA;
+  --danger-text: #B91C1C;
+
+  --info: #2563EB;
+  --info-bg: #EFF6FF;
+  --info-border: #BFDBFE;
+  --info-text: #1D4ED8;
+
+  /* ── Elevation Shadows (Restrained, Enterprise Grade) ──────── */
+  --shadow-xs: 0 1px 2px 0 rgba(23, 25, 31, 0.04);
+  --shadow-sm: 0 1px 3px 0 rgba(23, 25, 31, 0.06), 0 1px 2px -1px rgba(23, 25, 31, 0.04);
+  --shadow: 0 2px 4px -1px rgba(23, 25, 31, 0.06), 0 1px 2px -1px rgba(23, 25, 31, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(23, 25, 31, 0.07), 0 2px 4px -2px rgba(23, 25, 31, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(23, 25, 31, 0.08), 0 4px 6px -4px rgba(23, 25, 31, 0.04);
+
+  /* ── Border Radius (Enterprise Geometry) ───────────────────── */
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-pill: 9999px;
+
+  /* ── Focus Ring (Purple/Indigo) ────────────────────────────── */
+  --focus-ring: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(91, 69, 214, 0.22);
+
+  /* ── Transitions ───────────────────────────────────────────── */
+  --transition: 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-md: 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ── Reset ─────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-html { font-size: 15px; -webkit-font-smoothing: antialiased; }
-
-body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background: var(--bg);
-  color: var(--text-primary);
-  line-height: 1.5;
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-a { text-decoration: none; color: inherit; }
-button, input, select, textarea { font-family: inherit; }
-img, svg { display: block; }
+html {
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
 
-/* ── Typography ────────────────────────────────────────────── */
-h1 { font-size: 1.75rem; font-weight: 700; line-height: 1.25; letter-spacing: -0.025em; }
-h2 { font-size: 1.375rem; font-weight: 600; line-height: 1.3; }
-h3 { font-size: 1.125rem; font-weight: 600; }
-h4 { font-size: 1rem; font-weight: 600; }
-p  { color: var(--text-secondary); font-size: 0.9rem; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  background-color: var(--background);
+  color: var(--text-primary);
+  line-height: 1.5;
+  min-height: 100vh;
+}
 
-/* ── Root ──────────────────────────────────────────────────── */
-#root { width: 100%; min-height: 100vh; }
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+img, svg {
+  display: block;
+}
+
+/* ── Typography Defaults ───────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+h1 { font-size: 1.4rem; font-weight: 700; line-height: 1.25; }
+h2 { font-size: 1.2rem; font-weight: 600; line-height: 1.3; }
+h3 { font-size: 1rem; font-weight: 600; line-height: 1.35; }
+h4 { font-size: 0.88rem; font-weight: 600; }
+p  { color: var(--text-secondary); font-size: 0.85rem; }
+
+/* ── Application Root ──────────────────────────────────────── */
+#root {
+  width: 100%;
+  min-height: 100vh;
+}

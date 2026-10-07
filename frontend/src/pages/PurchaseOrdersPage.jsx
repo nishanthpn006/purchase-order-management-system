@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, FilePlus, RefreshCw, X, Plus, Trash2, CheckCircle, AlertTriangle } from "lucide-react";
+import { Search, RefreshCw, X, Plus, Trash2, CheckCircle, AlertTriangle } from "lucide-react";
 import {
   getPurchaseOrders,
   getPurchaseOrderById,
@@ -38,6 +38,9 @@ function PurchaseOrdersPage() {
   const [error, setError]         = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [search, setSearch]       = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [vendorFilter, setVendorFilter] = useState("ALL");
+  const [selectedRows, setSelectedRows] = useState(new Set());
 
   // Create PO Modal state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -124,13 +127,50 @@ function PurchaseOrdersPage() {
     };
   }, [refreshKey]);
 
+  // Tab counts for status filtering
+  const pendingCount = orders.filter((o) => o.status === "Pending").length;
+  const approvedCount = orders.filter((o) => o.status === "Approved").length;
+  const completedCount = orders.filter((o) => o.status === "Completed").length;
+  const rejectedCount = orders.filter((o) => o.status === "Rejected").length;
+
+  const statusTabs = [
+    { key: "ALL", label: "All Orders", count: orders.length },
+    { key: "PENDING", label: "Pending", count: pendingCount },
+    { key: "APPROVED", label: "Approved", count: approvedCount },
+    { key: "COMPLETED", label: "Completed", count: completedCount },
+    { key: "REJECTED", label: "Rejected", count: rejectedCount },
+  ];
+
   // Filtered orders
-  const filtered = orders.filter(
-    (po) =>
+  const filtered = orders.filter((po) => {
+    const matchesSearch =
       po.po_number.toLowerCase().includes(search.toLowerCase()) ||
       (po.vendor_name ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      (po.status ?? "").toLowerCase().includes(search.toLowerCase())
-  );
+      (po.status ?? "").toLowerCase().includes(search.toLowerCase());
+    const matchesStatus =
+      statusFilter === "ALL" || (po.status || "").toUpperCase() === statusFilter;
+    const matchesVendor =
+      vendorFilter === "ALL" || String(po.vendor_id) === String(vendorFilter);
+    return matchesSearch && matchesStatus && matchesVendor;
+  });
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedRows(new Set(filtered.map((o) => o.id)));
+    } else {
+      setSelectedRows(new Set());
+    }
+  };
+
+  const handleSelectRow = (id) => {
+    const next = new Set(selectedRows);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedRows(next);
+  };
 
   // ── Open View Details Modal ─────────────────────────────────
   const handleOpenDetail = async (poId) => {
@@ -189,7 +229,6 @@ function PurchaseOrdersPage() {
       const updated = [...prev.items];
       updated[index] = { ...updated[index], [field]: value };
 
-      // If product changed, auto-populate unitPrice from product catalog
       if (field === "productId") {
         const prod = products.find((p) => String(p.id) === String(value));
         if (prod) {
@@ -200,7 +239,6 @@ function PurchaseOrdersPage() {
     });
   };
 
-  // Calculate total amount for create form
   const calculatedTotal = createForm.items.reduce((sum, item) => {
     const qty = Number(item.quantity) || 0;
     const price = Number(item.unitPrice) || 0;
@@ -269,26 +307,19 @@ function PurchaseOrdersPage() {
 
   return (
     <>
+      {/* Enterprise Page Header */}
       <div className="page-header">
         <div className="page-header-row">
           <div>
             <div className="page-title">Purchase Orders</div>
             <div className="page-subtitle">
-              {!loading && `${orders.length} order${orders.length !== 1 ? "s" : ""} total`}
+              Manage procurement orders, monitor deliveries, and control status workflows.
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <div className="search-box">
-              <Search className="search-box-icon" size={16} />
-              <input
-                type="search"
-                placeholder="Search orders…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <button className="btn btn-ghost btn-sm" onClick={handleRefresh} title="Refresh">
-              <RefreshCw size={14} />
+            <button className="btn btn-ghost btn-sm" onClick={handleRefresh} title="Refresh records">
+              <RefreshCw size={13} />
+              <span>Refresh</span>
             </button>
             <button
               className="btn btn-primary btn-sm"
@@ -297,45 +328,151 @@ function PurchaseOrdersPage() {
                 setIsCreateOpen(true);
               }}
             >
-              <FilePlus size={14} />
-              New PO
+              <Plus size={14} />
+              <span>Create Purchase Order</span>
             </button>
           </div>
         </div>
       </div>
 
+      {/* Success alert message */}
       {successMsg && (
         <div
           style={{
-            background: "rgba(16, 185, 129, 0.12)",
-            border: "1px solid rgba(16, 185, 129, 0.3)",
+            background: "var(--emerald-50)",
+            border: "1px solid var(--emerald-200)",
             borderRadius: "var(--radius)",
-            padding: "10px 16px",
-            color: "#059669",
-            fontSize: "0.85rem",
-            marginBottom: 18,
+            padding: "9px 14px",
+            color: "var(--emerald-700)",
+            fontSize: "0.82rem",
+            marginBottom: 14,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
           }}
+          role="status"
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <CheckCircle size={16} />
+            <CheckCircle size={15} />
             <span>{successMsg}</span>
           </div>
           <button
             onClick={() => setSuccessMsg("")}
-            style={{ background: "none", border: "none", color: "inherit", cursor: "pointer" }}
+            style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", display: "flex", alignItems: "center" }}
+            aria-label="Dismiss alert"
           >
             <X size={14} />
           </button>
         </div>
       )}
 
+      {/* Reference C Status Segmented Bar */}
+      <div style={{ marginBottom: 12 }}>
+        <div className="filter-tabs" role="tablist" aria-label="Order status filter">
+          {statusTabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              className={`filter-tab ${statusFilter === tab.key ? "active" : ""}`}
+              onClick={() => setStatusFilter(tab.key)}
+              role="tab"
+              aria-selected={statusFilter === tab.key}
+            >
+              <span>{tab.label}</span>
+              <span className="filter-tab-count">{tab.count}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Main Table Card */}
       <div className="card">
+        {/* Dedicated Control Toolbar (Reference C) */}
+        <div className="table-toolbar">
+          <div className="table-toolbar-left">
+            <div className="search-box">
+              <Search className="search-box-icon" size={14} />
+              <input
+                type="search"
+                placeholder="Search orders, vendors..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Search purchase orders"
+              />
+            </div>
+
+            <div className="table-filter-group">
+              <select
+                className="table-filter-select"
+                value={vendorFilter}
+                onChange={(e) => setVendorFilter(e.target.value)}
+                aria-label="Filter by vendor"
+              >
+                <option value="ALL">Vendor: All Vendors</option>
+                {vendors.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.vendorName || v.vendor_name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                className="table-filter-select"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                aria-label="Filter by status"
+              >
+                <option value="ALL">Status: All Statuses</option>
+                <option value="PENDING">Pending</option>
+                <option value="APPROVED">Approved</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+
+              <button
+                type="button"
+                className="table-filter-btn"
+                title="Add custom filter"
+              >
+                <Plus size={12} />
+                <span>Add filter</span>
+              </button>
+
+              {(search || vendorFilter !== "ALL" || statusFilter !== "ALL") && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  style={{ fontSize: "0.74rem", padding: "3px 8px" }}
+                  onClick={() => {
+                    setSearch("");
+                    setVendorFilter("ALL");
+                    setStatusFilter("ALL");
+                  }}
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="table-toolbar-right">
+            <span style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>
+              Showing {filtered.length} of {orders.length} orders
+            </span>
+            <button
+              className="btn btn-ghost btn-sm btn-icon"
+              onClick={handleRefresh}
+              title="Refresh records"
+              aria-label="Refresh records"
+            >
+              <RefreshCw size={13} />
+            </button>
+          </div>
+        </div>
+
         {error ? (
           <div className="empty-state">
-            <p style={{ color: "var(--danger)", fontSize: "0.88rem" }}>{error}</p>
+            <p style={{ color: "var(--danger)", fontSize: "0.85rem" }}>{error}</p>
             <button className="btn btn-ghost btn-sm" onClick={handleRefresh} style={{ marginTop: 8 }}>
               <RefreshCw size={13} /> Retry
             </button>
@@ -345,59 +482,99 @@ function PurchaseOrdersPage() {
         ) : filtered.length === 0 ? (
           <EmptyState
             title="No purchase orders found"
-            description={search ? `No orders match "${search}".` : "No purchase orders have been created yet."}
+            description={search || vendorFilter !== "ALL" || statusFilter !== "ALL" ? "No orders match the current filter or search criteria." : "No purchase orders have been created yet."}
           />
         ) : (
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>PO Number</th>
-                  <th>Vendor</th>
-                  <th>Order Date</th>
-                  <th>Expected Delivery</th>
-                  <th>Total Amount</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((po) => (
-                  <tr key={po.id}>
-                    <td className="table-cell-mono table-cell-bold">{po.po_number}</td>
-                    <td>{po.vendor_name ?? "—"}</td>
-                    <td className="table-cell-muted">{fmt(po.order_date)}</td>
-                    <td className="table-cell-muted">{fmt(po.expected_delivery)}</td>
-                    <td style={{ fontWeight: 600 }}>{fmtCurrency(po.total_amount)}</td>
-                    <td><StatusBadge status={po.status} /></td>
-                    <td>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => handleOpenDetail(po.id)}
-                      >
-                        View
-                      </button>
-                    </td>
+          <>
+            <div className="table-container">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 36, textAlign: "center" }}>
+                      <input
+                        type="checkbox"
+                        className="table-checkbox"
+                        checked={filtered.length > 0 && selectedRows.size === filtered.length}
+                        onChange={handleSelectAll}
+                        aria-label="Select all orders"
+                      />
+                    </th>
+                    <th>PO Number</th>
+                    <th>Vendor</th>
+                    <th>Order Date</th>
+                    <th>Expected Delivery</th>
+                    <th style={{ textAlign: "right" }}>Total Amount</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: "right" }}>Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filtered.map((po) => {
+                    const isSelected = selectedRows.has(po.id);
+                    return (
+                      <tr key={po.id} className={isSelected ? "row-selected" : ""}>
+                        <td style={{ textAlign: "center" }}>
+                          <input
+                            type="checkbox"
+                            className="table-checkbox"
+                            checked={isSelected}
+                            onChange={() => handleSelectRow(po.id)}
+                            aria-label={`Select order ${po.po_number}`}
+                          />
+                        </td>
+                        <td className="table-cell-mono table-cell-bold">{po.po_number}</td>
+                        <td>{po.vendor_name ?? "—"}</td>
+                        <td className="table-cell-muted">{fmt(po.order_date)}</td>
+                        <td className="table-cell-muted">{fmt(po.expected_delivery)}</td>
+                        <td className="table-num" style={{ fontWeight: 600 }}>{fmtCurrency(po.total_amount)}</td>
+                        <td><StatusBadge status={po.status} /></td>
+                        <td style={{ textAlign: "right" }}>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => handleOpenDetail(po.id)}
+                          >
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Reference C Table Pagination Footer */}
+            <div className="table-pagination">
+              <div className="table-pagination-info">
+                Showing {filtered.length > 0 ? 1 : 0} to {filtered.length} of {filtered.length} entries
+                {selectedRows.size > 0 && ` (${selectedRows.size} selected)`}
+              </div>
+              <div className="table-pagination-nav">
+                <button className="pagination-btn" disabled>
+                  Previous
+                </button>
+                <button className="pagination-btn active">1</button>
+                <button className="pagination-btn" disabled>
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
       {/* ── CREATE PURCHASE ORDER MODAL ────────────────────────── */}
       {isCreateOpen && (
         <div className="modal-overlay" onClick={() => setIsCreateOpen(false)}>
-          <div className="modal-dialog modal-dialog-lg" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-dialog modal-dialog-lg" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="create-po-title">
             <div className="modal-header">
-              <div className="modal-title">Create Purchase Order</div>
+              <div id="create-po-title" className="modal-title">Create Purchase Order</div>
               <button
-                className="btn-ghost btn-sm"
+                className="btn btn-ghost btn-sm btn-icon"
                 onClick={() => setIsCreateOpen(false)}
-                style={{ padding: 4, borderRadius: "50%" }}
+                aria-label="Close"
               >
-                <X size={18} />
+                <X size={15} />
               </button>
             </div>
 
@@ -409,20 +586,23 @@ function PurchaseOrdersPage() {
                       background: "var(--danger-bg)",
                       border: "1px solid var(--danger-border)",
                       borderRadius: "var(--radius)",
-                      padding: "10px 14px",
+                      padding: "9px 12px",
                       color: "var(--danger)",
-                      fontSize: "0.82rem",
-                      marginBottom: 16,
+                      fontSize: "0.8rem",
+                      marginBottom: 14,
                     }}
+                    role="alert"
                   >
                     {createError}
                   </div>
                 )}
 
+                <div className="modal-section-title">PO Information</div>
                 <div className="form-grid">
                   <div className="form-group">
-                    <label>Vendor *</label>
+                    <label htmlFor="po-vendor-select">Vendor *</label>
                     <select
+                      id="po-vendor-select"
                       value={createForm.vendorId}
                       onChange={(e) => setCreateForm({ ...createForm, vendorId: e.target.value })}
                       required
@@ -437,8 +617,9 @@ function PurchaseOrdersPage() {
                   </div>
 
                   <div className="form-group">
-                    <label>Order Date *</label>
+                    <label htmlFor="po-order-date">Order Date *</label>
                     <input
+                      id="po-order-date"
                       type="date"
                       value={createForm.orderDate}
                       onChange={(e) => setCreateForm({ ...createForm, orderDate: e.target.value })}
@@ -447,120 +628,141 @@ function PurchaseOrdersPage() {
                   </div>
 
                   <div className="form-group">
-                    <label>Expected Delivery</label>
+                    <label htmlFor="po-delivery-date">Expected Delivery</label>
                     <input
+                      id="po-delivery-date"
                       type="date"
                       value={createForm.expectedDelivery}
                       onChange={(e) => setCreateForm({ ...createForm, expectedDelivery: e.target.value })}
                     />
                   </div>
-
-                  <div className="form-group">
-                    <label>Total Calculated</label>
-                    <div style={{ padding: "8px 12px", fontWeight: 700, fontSize: "1rem", color: "var(--primary)" }}>
-                      {fmtCurrency(calculatedTotal)}
-                    </div>
-                  </div>
                 </div>
 
-                <div style={{ marginTop: 24 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                    <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>Line Items</div>
+                <div style={{ marginTop: 22 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <div className="modal-section-title" style={{ marginBottom: 0 }}>
+                      Line Items ({createForm.items.length})
+                    </div>
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm"
                       onClick={handleAddItem}
                     >
-                      <Plus size={14} /> Add Item
+                      <Plus size={13} /> Add Item
                     </button>
                   </div>
 
-                  <table className="table" style={{ background: "var(--bg)", borderRadius: "var(--radius)" }}>
-                    <thead>
-                      <tr>
-                        <th>Product *</th>
-                        <th style={{ width: 100 }}>Qty *</th>
-                        <th style={{ width: 140 }}>Unit Price (₹) *</th>
-                        <th style={{ width: 130 }}>Subtotal</th>
-                        <th style={{ width: 50 }}></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {createForm.items.map((item, idx) => {
-                        const subtotal = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
-                        return (
-                          <tr key={idx}>
-                            <td>
-                              <select
-                                value={item.productId}
-                                onChange={(e) => handleItemChange(idx, "productId", e.target.value)}
-                                required
-                                style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
-                              >
-                                <option value="">Select product…</option>
-                                {products.map((p) => (
-                                  <option key={p.id} value={p.id}>
-                                    {p.productName || p.product_name}
-                                  </option>
-                                ))}
-                              </select>
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                min="1"
-                                value={item.quantity}
-                                onChange={(e) => handleItemChange(idx, "quantity", e.target.value)}
-                                required
-                                style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={item.unitPrice}
-                                onChange={(e) => handleItemChange(idx, "unitPrice", e.target.value)}
-                                required
-                                style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
-                              />
-                            </td>
-                            <td style={{ fontWeight: 600 }}>
-                              {fmtCurrency(subtotal)}
-                            </td>
-                            <td>
-                              {createForm.items.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveItem(idx)}
-                                  className="btn-ghost"
-                                  style={{ color: "var(--danger)", border: "none", padding: 4 }}
-                                  title="Remove item"
+                  <div className="table-container" style={{ border: "1px solid var(--border)", borderRadius: "var(--radius)" }}>
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Product *</th>
+                          <th style={{ width: 90, textAlign: "center" }}>Qty *</th>
+                          <th style={{ width: 130, textAlign: "right" }}>Unit Price (₹) *</th>
+                          <th style={{ width: 130, textAlign: "right" }}>Subtotal</th>
+                          <th style={{ width: 44, textAlign: "center" }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {createForm.items.map((item, idx) => {
+                          const subtotal = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
+                          return (
+                            <tr key={idx}>
+                              <td>
+                                <select
+                                  value={item.productId}
+                                  onChange={(e) => handleItemChange(idx, "productId", e.target.value)}
+                                  required
+                                  style={{ width: "100%", height: 28, fontSize: "0.78rem" }}
+                                  aria-label={`Product for line item ${idx + 1}`}
                                 >
-                                  <Trash2 size={15} />
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                                  <option value="">Select product…</option>
+                                  {products.map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.productName || p.product_name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td style={{ textAlign: "center" }}>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={item.quantity}
+                                  onChange={(e) => handleItemChange(idx, "quantity", e.target.value)}
+                                  required
+                                  style={{ width: 70, height: 28, textAlign: "center", fontSize: "0.78rem" }}
+                                  aria-label={`Quantity for line item ${idx + 1}`}
+                                />
+                              </td>
+                              <td style={{ textAlign: "right" }}>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={item.unitPrice}
+                                  onChange={(e) => handleItemChange(idx, "unitPrice", e.target.value)}
+                                  required
+                                  style={{ width: 110, height: 28, textAlign: "right", fontSize: "0.78rem" }}
+                                  aria-label={`Unit price for line item ${idx + 1}`}
+                                />
+                              </td>
+                              <td className="table-num" style={{ fontWeight: 600 }}>
+                                {fmtCurrency(subtotal)}
+                              </td>
+                              <td style={{ textAlign: "center" }}>
+                                {createForm.items.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveItem(idx)}
+                                    className="btn btn-ghost btn-sm btn-icon"
+                                    style={{ color: "var(--danger)", border: "none" }}
+                                    title="Remove item"
+                                    aria-label="Remove item"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Financial Summary Card */}
+                  <div className="modal-totals-card">
+                    <div className="modal-totals-box">
+                      <div className="modal-totals-row">
+                        <span>Items Subtotal:</span>
+                        <span>{fmtCurrency(calculatedTotal)}</span>
+                      </div>
+                      <div className="modal-totals-row">
+                        <span>Estimated Tax (0%):</span>
+                        <span>₹0.00</span>
+                      </div>
+                      <div className="modal-totals-divider" />
+                      <div className="modal-totals-row grand-total">
+                        <span>Grand Total:</span>
+                        <span>{fmtCurrency(calculatedTotal)}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div className="modal-footer">
                 <button
                   type="button"
-                  className="btn btn-ghost"
+                  className="btn btn-ghost btn-sm"
                   onClick={() => setIsCreateOpen(false)}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary"
+                  className="btn btn-primary btn-sm"
                   disabled={createSubmitting}
                 >
                   {createSubmitting ? "Creating…" : "Create Purchase Order"}
@@ -574,24 +776,20 @@ function PurchaseOrdersPage() {
       {/* ── VIEW PURCHASE ORDER DETAILS MODAL ──────────────────── */}
       {isDetailOpen && (
         <div className="modal-overlay" onClick={() => setIsDetailOpen(false)}>
-          <div className="modal-dialog modal-dialog-lg" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-dialog modal-dialog-lg" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="view-po-title">
             <div className="modal-header">
-              <div>
-                <div className="modal-title">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div id="view-po-title" className="modal-title">
                   Purchase Order: {selectedPO?.poNumber || selectedPO?.po_number || "Details"}
                 </div>
-                {selectedPO && (
-                  <div style={{ marginTop: 4 }}>
-                    <StatusBadge status={selectedPO.status} />
-                  </div>
-                )}
+                {selectedPO && <StatusBadge status={selectedPO.status} />}
               </div>
               <button
-                className="btn-ghost btn-sm"
+                className="btn btn-ghost btn-sm btn-icon"
                 onClick={() => setIsDetailOpen(false)}
-                style={{ padding: 4, borderRadius: "50%" }}
+                aria-label="Close"
               >
-                <X size={18} />
+                <X size={15} />
               </button>
             </div>
 
@@ -604,61 +802,62 @@ function PurchaseOrdersPage() {
                     background: "var(--danger-bg)",
                     border: "1px solid var(--danger-border)",
                     borderRadius: "var(--radius)",
-                    padding: "10px 14px",
+                    padding: "9px 12px",
                     color: "var(--danger)",
-                    fontSize: "0.85rem",
-                    marginBottom: 16,
+                    fontSize: "0.82rem",
+                    marginBottom: 14,
                   }}
+                  role="alert"
                 >
                   {detailError}
                 </div>
               ) : selectedPO ? (
                 <>
-                  <div className="form-grid" style={{ marginBottom: 20 }}>
-                    <div>
-                      <div className="table-cell-muted" style={{ fontSize: "0.75rem" }}>Order Date</div>
-                      <div style={{ fontWeight: 600 }}>{fmt(selectedPO.orderDate || selectedPO.order_date)}</div>
+                  {/* Order Information Section */}
+                  <div className="modal-section-title">Order Information</div>
+                  <div className="summary-strip">
+                    <div className="summary-tile">
+                      <span className="summary-tile-label">Order Date</span>
+                      <span className="summary-tile-value">{fmt(selectedPO.orderDate || selectedPO.order_date)}</span>
                     </div>
-                    <div>
-                      <div className="table-cell-muted" style={{ fontSize: "0.75rem" }}>Expected Delivery</div>
-                      <div style={{ fontWeight: 600 }}>{fmt(selectedPO.expectedDelivery || selectedPO.expected_delivery)}</div>
+                    <div className="summary-tile">
+                      <span className="summary-tile-label">Expected Delivery</span>
+                      <span className="summary-tile-value">{fmt(selectedPO.expectedDelivery || selectedPO.expected_delivery)}</span>
                     </div>
-                    <div>
-                      <div className="table-cell-muted" style={{ fontSize: "0.75rem" }}>Vendor</div>
-                      <div style={{ fontWeight: 600 }}>
+                    <div className="summary-tile">
+                      <span className="summary-tile-label">Vendor</span>
+                      <span className="summary-tile-value" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {selectedPO.vendor_name ||
                           vendors.find((v) => v.id === selectedPO.vendorId)?.vendorName ||
                           vendors.find((v) => v.id === selectedPO.vendorId)?.vendor_name ||
                           `Vendor #${selectedPO.vendorId || "—"}`}
-                      </div>
+                      </span>
                     </div>
-                    <div>
-                      <div className="table-cell-muted" style={{ fontSize: "0.75rem" }}>Total Amount</div>
-                      <div style={{ fontWeight: 700, fontSize: "1.1rem", color: "var(--primary)" }}>
+                    <div className="summary-tile">
+                      <span className="summary-tile-label">Total Amount</span>
+                      <span className="summary-tile-value" style={{ color: "var(--primary)" }}>
                         {fmtCurrency(selectedPO.totalAmount ?? selectedPO.total_amount)}
-                      </div>
+                      </span>
                     </div>
                   </div>
 
-                  {/* Status update section (Role-Based) */}
+                  {/* Status Workflow Section (Role-Based) */}
+                  <div className="modal-section-title">Status Workflow</div>
                   <div
                     style={{
-                      background: "var(--bg)",
-                      padding: "14px 18px",
+                      background: "var(--surface-subtle)",
+                      padding: "12px 14px",
                       borderRadius: "var(--radius)",
-                      marginBottom: 20,
+                      marginBottom: 18,
                       border: "1px solid var(--border)",
                     }}
                   >
-                    <div style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: 8 }}>
-                      Status Workflow:
-                    </div>
                     {canUpdateStatus ? (
-                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                        <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                          Change status to:
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                        <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                          Change order status:
                         </span>
-                        {["Pending", "Approved", "Rejected", "Completed"].map((st) => (
+                        {["Pending", "Approved", "Completed", "Rejected"].map((st) => (
                           <button
                             key={st}
                             type="button"
@@ -671,47 +870,64 @@ function PurchaseOrdersPage() {
                         ))}
                       </div>
                     ) : (
-                      <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
-                        <AlertTriangle size={14} />
-                        Status updates are restricted to Admin and Manager accounts.
+                      <div style={{ fontSize: "0.76rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
+                        <AlertTriangle size={13} />
+                        <span>Status updates are restricted to Admin and Manager accounts.</span>
                       </div>
                     )}
                   </div>
 
-                  {/* Line items table */}
+                  {/* Line Items Table Section */}
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: "0.9rem", marginBottom: 10 }}>
+                    <div className="modal-section-title">
                       Line Items ({selectedPO.items?.length || 0})
                     </div>
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>Product</th>
-                          <th style={{ textAlign: "center" }}>Quantity</th>
-                          <th style={{ textAlign: "right" }}>Unit Price</th>
-                          <th style={{ textAlign: "right" }}>Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(selectedPO.items || []).map((item, idx) => {
-                          const pId = item.productId || item.product_id || item.id?.productId;
-                          const prod = products.find((p) => p.id === pId);
-                          const pName = prod?.productName || prod?.product_name || item.product_name || `Product #${pId || idx + 1}`;
-                          const qty = item.quantity;
-                          const price = item.unitPrice ?? item.unit_price ?? 0;
-                          const total = item.totalPrice ?? item.total_price ?? (qty * price);
+                    <div className="table-container" style={{ border: "1px solid var(--border)", borderRadius: "var(--radius)" }}>
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Product</th>
+                            <th style={{ textAlign: "center" }}>Quantity</th>
+                            <th style={{ textAlign: "right" }}>Unit Price</th>
+                            <th style={{ textAlign: "right" }}>Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(selectedPO.items || []).map((item, idx) => {
+                            const pId = item.productId || item.product_id || item.id?.productId;
+                            const prod = products.find((p) => p.id === pId);
+                            const pName = prod?.productName || prod?.product_name || item.product_name || `Product #${pId || idx + 1}`;
+                            const qty = item.quantity;
+                            const price = item.unitPrice ?? item.unit_price ?? 0;
+                            const total = item.totalPrice ?? item.total_price ?? (qty * price);
 
-                          return (
-                            <tr key={idx}>
-                              <td className="table-cell-bold">{pName}</td>
-                              <td style={{ textAlign: "center" }}>{qty}</td>
-                              <td style={{ textAlign: "right" }}>{fmtCurrency(price)}</td>
-                              <td style={{ textAlign: "right", fontWeight: 600 }}>{fmtCurrency(total)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                            return (
+                              <tr key={idx}>
+                                <td className="table-cell-bold">{pName}</td>
+                                <td style={{ textAlign: "center" }}>{qty}</td>
+                                <td className="table-num">{fmtCurrency(price)}</td>
+                                <td className="table-num" style={{ fontWeight: 600 }}>{fmtCurrency(total)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Order Financial Totals */}
+                    <div className="modal-totals-card">
+                      <div className="modal-totals-box">
+                        <div className="modal-totals-row">
+                          <span>Items Subtotal:</span>
+                          <span>{fmtCurrency(selectedPO.totalAmount ?? selectedPO.total_amount)}</span>
+                        </div>
+                        <div className="modal-totals-divider" />
+                        <div className="modal-totals-row grand-total">
+                          <span>Grand Total:</span>
+                          <span>{fmtCurrency(selectedPO.totalAmount ?? selectedPO.total_amount)}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </>
               ) : null}
@@ -720,7 +936,7 @@ function PurchaseOrdersPage() {
             <div className="modal-footer">
               <button
                 type="button"
-                className="btn btn-ghost"
+                className="btn btn-ghost btn-sm"
                 onClick={() => setIsDetailOpen(false)}
               >
                 Close

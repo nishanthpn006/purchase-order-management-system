@@ -1,25 +1,30 @@
-import { Bell, Menu, LogOut } from "lucide-react";
+import { Bell, Menu, LogOut, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 
 const PAGE_META = {
-  "/dashboard":       { title: "Dashboard",        subtitle: "Overview of procurement operations" },
-  "/vendors":         { title: "Vendors",           subtitle: "Manage supplier records"            },
-  "/products":        { title: "Products",          subtitle: "Product catalog and pricing"        },
-  "/purchase-orders": { title: "Purchase Orders",   subtitle: "Track and manage purchase orders"  },
-  "/inventory":       { title: "Inventory",         subtitle: "Monitor stock levels"               },
-  "/goods-receipts":  { title: "Goods Receipts",    subtitle: "Verify and record deliveries"       },
+  "/dashboard":       { title: "Dashboard",        subtitle: "Procurement operations & KPI summary" },
+  "/vendors":         { title: "Vendors",           subtitle: "Supplier directory & contact records" },
+  "/products":        { title: "Products",          subtitle: "Catalog items, pricing & availability" },
+  "/purchase-orders": { title: "Purchase Orders",   subtitle: "Order lifecycle tracking & approvals" },
+  "/inventory":       { title: "Inventory",         subtitle: "Stock monitoring & replenishment"      },
+  "/goods-receipts":  { title: "Goods Receipts",    subtitle: "Delivery confirmations & receipts"    },
 };
 
 function Navbar({ onMenuToggle, currentPath }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const meta = PAGE_META[currentPath] || { title: "POMS", subtitle: "" };
+  const meta = PAGE_META[currentPath] || { title: "POMS", subtitle: "Enterprise Procurement" };
 
-  const initials = user?.name
-    ? user.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
-    : "U";
+  const displayName = user?.name || "Nishanth PN";
+  const displayRole = user?.role || "ADMIN";
+  const initials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
   const handleLogout = () => {
     logout();
@@ -27,14 +32,14 @@ function Navbar({ onMenuToggle, currentPath }) {
   };
 
   return (
-    <header className="navbar">
+    <header className="navbar" role="banner">
       <div className="navbar-left">
         <button
           className="hamburger"
           onClick={onMenuToggle}
-          aria-label="Toggle navigation"
+          aria-label="Toggle navigation menu"
         >
-          <Menu size={20} />
+          <Menu size={18} />
         </button>
 
         <div>
@@ -43,32 +48,53 @@ function Navbar({ onMenuToggle, currentPath }) {
         </div>
       </div>
 
+      {/* Center Enterprise Quick Search (Reference C) */}
+      <div className="navbar-center-search" role="search">
+        <Search size={13} className="navbar-center-search-icon" aria-hidden="true" />
+        <input
+          type="search"
+          placeholder="Search orders, vendors, catalog items..."
+          className="navbar-center-search-input"
+          aria-label="Global search"
+        />
+      </div>
+
       <div className="navbar-right">
-        {/* Notification bell */}
-        <button className="navbar-icon-btn" aria-label="Notifications" title="Notifications">
-          <Bell size={16} />
+        {/* System Health / Status Indicator */}
+        <div className="system-status-indicator" title="System operational and connected">
+          <span className="system-status-dot" aria-hidden="true" />
+          <span>Connected</span>
+        </div>
+
+        {/* Notifications */}
+        <button
+          className="navbar-icon-btn"
+          aria-label="Notifications"
+          title="System notifications"
+        >
+          <Bell size={15} />
           <span className="notification-dot" aria-hidden="true" />
         </button>
 
-        <div className="navbar-divider" />
+        <div className="navbar-divider" aria-hidden="true" />
 
-        {/* User profile */}
-        <div className="user-menu" title={user?.email}>
+        {/* User profile with role badge */}
+        <div className="user-menu" title={`Signed in as ${user?.email ?? ""}`}>
           <div className="user-avatar">{initials}</div>
           <div className="user-info">
-            <span className="user-name">{user?.name ?? "User"}</span>
-            <span className="user-role">{user?.role ?? ""}</span>
+            <span className="user-name">{displayName}</span>
+            <span className="role-tag">{displayRole}</span>
           </div>
         </div>
 
-        {/* Logout */}
+        {/* Sign out */}
         <button
           className="navbar-icon-btn"
           onClick={handleLogout}
-          aria-label="Logout"
-          title="Logout"
+          aria-label="Sign out"
+          title="Sign out"
         >
-          <LogOut size={16} />
+          <LogOut size={15} />
         </button>
       </div>
     </header>
