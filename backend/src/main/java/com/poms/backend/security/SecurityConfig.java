@@ -125,6 +125,12 @@ public class SecurityConfig {
                 // Status update restricted to Admin and Manager roles
                 .requestMatchers(HttpMethod.PATCH, "/api/purchase-orders/*/status")
                     .hasAnyRole("ADMIN", "MANAGER")
+                // Purchase order cancellation restricted to Admin and Manager roles
+                .requestMatchers(HttpMethod.PATCH, "/api/purchase-orders/*/cancel")
+                    .hasAnyRole("ADMIN", "MANAGER")
+                // Purchase order editing restricted to Admin and Manager roles
+                .requestMatchers(HttpMethod.PUT, "/api/purchase-orders/*", "/api/purchase-orders/**")
+                    .hasAnyRole("ADMIN", "MANAGER")
                 // Vendor creation restricted to Admin and Manager roles
                 .requestMatchers(HttpMethod.POST, "/api/vendors")
                     .hasAnyRole("ADMIN", "MANAGER")

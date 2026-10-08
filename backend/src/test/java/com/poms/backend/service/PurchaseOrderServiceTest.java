@@ -1,10 +1,13 @@
 package com.poms.backend.service;
 
 import com.poms.backend.dto.CreatePurchaseOrderRequest;
+import com.poms.backend.dto.UpdatePurchaseOrderRequest;
 import com.poms.backend.entity.PurchaseOrder;
 import com.poms.backend.entity.PurchaseOrderItem;
+import com.poms.backend.repository.ProductRepository;
 import com.poms.backend.repository.PurchaseOrderItemRepository;
 import com.poms.backend.repository.PurchaseOrderRepository;
+import com.poms.backend.repository.VendorRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,6 +39,12 @@ class PurchaseOrderServiceTest {
 
     @Mock
     private PurchaseOrderItemRepository purchaseOrderItemRepository;
+
+    @Mock
+    private VendorRepository vendorRepository;
+
+    @Mock
+    private ProductRepository productRepository;
 
     @InjectMocks
     private PurchaseOrderService purchaseOrderService;
@@ -419,16 +428,16 @@ class PurchaseOrderServiceTest {
     }
 
     @Test
-    @DisplayName("updateStatus rejects unknown or unallowed status such as Cancelled")
-    void updateStatus_DisallowsCancelledOrUnknownStatus() {
+    @DisplayName("updateStatus rejects unknown or unallowed status such as Shipped")
+    void updateStatus_DisallowsUnknownStatus() {
         sampleOrder.setStatus("Pending");
         when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                purchaseOrderService.updateStatus(1, "Cancelled")
+                purchaseOrderService.updateStatus(1, "Shipped")
         );
 
-        assertTrue(ex.getMessage().contains("Invalid status: 'Cancelled'"));
+        assertTrue(ex.getMessage().contains("Invalid status: 'Shipped'"));
         verify(purchaseOrderRepository, never()).save(any());
     }
 
@@ -439,6 +448,402 @@ class PurchaseOrderServiceTest {
 
         assertThrows(NoSuchElementException.class, () ->
                 purchaseOrderService.updateStatus(999, "Approved")
+        );
+    }
+
+    // ── Milestone: Cancel Purchase Order Tests ──
+
+    @Test
+    @DisplayName("updateStatus allows valid transition: Pending -> Cancelled")
+    void updateStatus_ValidTransition_PendingToCancelled() {
+        sampleOrder.setStatus("Pending");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+        when(purchaseOrderRepository.save(any(PurchaseOrder.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        PurchaseOrder updated = purchaseOrderService.updateStatus(1, "Cancelled");
+
+        assertNotNull(updated);
+        assertEquals("Cancelled", updated.getStatus());
+        verify(purchaseOrderRepository, times(1)).save(sampleOrder);
+    }
+
+    @Test
+    @DisplayName("updateStatus allows valid transition: Approved -> Cancelled")
+    void updateStatus_ValidTransition_ApprovedToCancelled() {
+        sampleOrder.setStatus("Approved");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+        when(purchaseOrderRepository.save(any(PurchaseOrder.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        PurchaseOrder updated = purchaseOrderService.updateStatus(1, "Cancelled");
+
+        assertNotNull(updated);
+        assertEquals("Cancelled", updated.getStatus());
+        verify(purchaseOrderRepository, times(1)).save(sampleOrder);
+    }
+
+    @Test
+    @DisplayName("cancelPurchaseOrder allows cancelling a Pending purchase order")
+    void cancelPurchaseOrder_FromPending_Succeeds() {
+        sampleOrder.setStatus("Pending");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+        when(purchaseOrderRepository.save(any(PurchaseOrder.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        PurchaseOrder cancelled = purchaseOrderService.cancelPurchaseOrder(1);
+
+        assertNotNull(cancelled);
+        assertEquals("Cancelled", cancelled.getStatus());
+        verify(purchaseOrderRepository, times(1)).save(sampleOrder);
+    }
+
+    @Test
+    @DisplayName("cancelPurchaseOrder allows cancelling an Approved purchase order")
+    void cancelPurchaseOrder_FromApproved_Succeeds() {
+        sampleOrder.setStatus("Approved");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+        when(purchaseOrderRepository.save(any(PurchaseOrder.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        PurchaseOrder cancelled = purchaseOrderService.cancelPurchaseOrder(1);
+
+        assertNotNull(cancelled);
+        assertEquals("Cancelled", cancelled.getStatus());
+        verify(purchaseOrderRepository, times(1)).save(sampleOrder);
+    }
+
+    @Test
+    @DisplayName("cancelPurchaseOrder throws IllegalArgumentException when cancelling a Rejected purchase order")
+    void cancelPurchaseOrder_FromTerminal_Rejected_ThrowsException() {
+        sampleOrder.setStatus("Rejected");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                purchaseOrderService.cancelPurchaseOrder(1)
+        );
+
+        assertTrue(ex.getMessage().contains("Cannot transition from terminal status 'Rejected'"));
+        verify(purchaseOrderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("cancelPurchaseOrder throws IllegalArgumentException when cancelling a Completed purchase order")
+    void cancelPurchaseOrder_FromTerminal_Completed_ThrowsException() {
+        sampleOrder.setStatus("Completed");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                purchaseOrderService.cancelPurchaseOrder(1)
+        );
+
+        assertTrue(ex.getMessage().contains("Cannot transition from terminal status 'Completed'"));
+        verify(purchaseOrderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("cancelPurchaseOrder throws IllegalArgumentException when cancelling an already Cancelled purchase order")
+    void cancelPurchaseOrder_FromTerminal_Cancelled_ThrowsException() {
+        sampleOrder.setStatus("Cancelled");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                purchaseOrderService.cancelPurchaseOrder(1)
+        );
+
+        assertTrue(ex.getMessage().contains("Cannot transition from terminal status 'Cancelled'"));
+        verify(purchaseOrderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateStatus enforces terminal-state protection: Cancelled cannot transition to any status")
+    void updateStatus_TerminalState_Cancelled_CannotTransition() {
+        sampleOrder.setStatus("Cancelled");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                purchaseOrderService.updateStatus(1, "Pending")
+        );
+
+        assertTrue(ex.getMessage().contains("Cannot transition from terminal status 'Cancelled'"));
+        verify(purchaseOrderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("cancelPurchaseOrder throws NoSuchElementException when PO ID does not exist")
+    void cancelPurchaseOrder_NotFound_ThrowsNoSuchElementException() {
+        when(purchaseOrderRepository.findById(999)).thenReturn(Optional.empty());
+
+        assertThrows(NoSuchElementException.class, () ->
+                purchaseOrderService.cancelPurchaseOrder(999)
+        );
+    }
+
+    // ── Milestone: Update Purchase Order (PUT) Tests ──
+
+    @Test
+    @DisplayName("updatePurchaseOrder method is annotated with @Transactional")
+    void updatePurchaseOrder_HasTransactionalAnnotation() throws NoSuchMethodException {
+        Method method = PurchaseOrderService.class.getMethod(
+                "updatePurchaseOrder", Integer.class, UpdatePurchaseOrderRequest.class);
+        assertTrue(method.isAnnotationPresent(Transactional.class),
+                "updatePurchaseOrder must be annotated with @Transactional for atomicity");
+    }
+
+    @Test
+    @DisplayName("updatePurchaseOrder successfully updates a Pending purchase order and recalculates totalAmount")
+    void updatePurchaseOrder_SuccessfulPendingPoEdit() {
+        sampleOrder.setStatus("Pending");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+        when(vendorRepository.existsById(20)).thenReturn(true);
+        when(productRepository.existsById(101)).thenReturn(true);
+        when(productRepository.existsById(102)).thenReturn(true);
+
+        PurchaseOrderItem existingItem = new PurchaseOrderItem();
+        existingItem.setId(new com.poms.backend.entity.PurchaseOrderItemId(1, 101));
+        existingItem.setQuantity(1);
+        existingItem.setUnitPrice(new BigDecimal("100.00"));
+        when(purchaseOrderItemRepository.findByIdPurchaseOrderId(1)).thenReturn(new java.util.ArrayList<>(List.of(existingItem)));
+
+        when(purchaseOrderRepository.save(any(PurchaseOrder.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdatePurchaseOrderRequest request = new UpdatePurchaseOrderRequest();
+        request.setVendorId(20);
+        request.setOrderDate(LocalDate.of(2026, 4, 1));
+        request.setExpectedDelivery(LocalDate.of(2026, 4, 15));
+
+        UpdatePurchaseOrderRequest.OrderItemRequest item1 = new UpdatePurchaseOrderRequest.OrderItemRequest(101, 3, new BigDecimal("100.00")); // 300.00
+        UpdatePurchaseOrderRequest.OrderItemRequest item2 = new UpdatePurchaseOrderRequest.OrderItemRequest(102, 2, new BigDecimal("250.00")); // 500.00
+        request.setItems(List.of(item1, item2));
+
+        PurchaseOrder updated = purchaseOrderService.updatePurchaseOrder(1, request);
+
+        assertNotNull(updated);
+        assertEquals(1, updated.getId());
+        assertEquals("PO-2026-001", updated.getPoNumber()); // preserved
+        assertEquals("Pending", updated.getStatus()); // preserved
+        assertEquals(20, updated.getVendorId()); // updated
+        assertEquals(LocalDate.of(2026, 4, 1), updated.getOrderDate()); // updated
+        assertEquals(LocalDate.of(2026, 4, 15), updated.getExpectedDelivery()); // updated
+        assertEquals(new BigDecimal("800.00"), updated.getTotalAmount()); // recalculated
+
+        verify(purchaseOrderRepository, times(1)).save(sampleOrder);
+        verify(purchaseOrderItemRepository, times(2)).save(any(PurchaseOrderItem.class));
+    }
+
+    @Test
+    @DisplayName("updatePurchaseOrder rejects edit when PO status is Approved")
+    void updatePurchaseOrder_RejectedForApproved() {
+        sampleOrder.setStatus("Approved");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+
+        UpdatePurchaseOrderRequest request = new UpdatePurchaseOrderRequest();
+        request.setVendorId(10);
+        request.setOrderDate(LocalDate.of(2026, 3, 1));
+        request.setItems(List.of(new UpdatePurchaseOrderRequest.OrderItemRequest(101, 1, new BigDecimal("10.00"))));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                purchaseOrderService.updatePurchaseOrder(1, request)
+        );
+
+        assertTrue(ex.getMessage().contains("Cannot edit purchase order in 'Approved' status"));
+        verify(purchaseOrderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updatePurchaseOrder rejects edit when PO status is Rejected")
+    void updatePurchaseOrder_RejectedForRejected() {
+        sampleOrder.setStatus("Rejected");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+
+        UpdatePurchaseOrderRequest request = new UpdatePurchaseOrderRequest();
+        request.setVendorId(10);
+        request.setOrderDate(LocalDate.of(2026, 3, 1));
+        request.setItems(List.of(new UpdatePurchaseOrderRequest.OrderItemRequest(101, 1, new BigDecimal("10.00"))));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                purchaseOrderService.updatePurchaseOrder(1, request)
+        );
+
+        assertTrue(ex.getMessage().contains("Cannot edit purchase order in 'Rejected' status"));
+        verify(purchaseOrderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updatePurchaseOrder rejects edit when PO status is Completed")
+    void updatePurchaseOrder_RejectedForCompleted() {
+        sampleOrder.setStatus("Completed");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+
+        UpdatePurchaseOrderRequest request = new UpdatePurchaseOrderRequest();
+        request.setVendorId(10);
+        request.setOrderDate(LocalDate.of(2026, 3, 1));
+        request.setItems(List.of(new UpdatePurchaseOrderRequest.OrderItemRequest(101, 1, new BigDecimal("10.00"))));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                purchaseOrderService.updatePurchaseOrder(1, request)
+        );
+
+        assertTrue(ex.getMessage().contains("Cannot edit purchase order in 'Completed' status"));
+        verify(purchaseOrderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updatePurchaseOrder rejects edit when PO status is Cancelled")
+    void updatePurchaseOrder_RejectedForCancelled() {
+        sampleOrder.setStatus("Cancelled");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+
+        UpdatePurchaseOrderRequest request = new UpdatePurchaseOrderRequest();
+        request.setVendorId(10);
+        request.setOrderDate(LocalDate.of(2026, 3, 1));
+        request.setItems(List.of(new UpdatePurchaseOrderRequest.OrderItemRequest(101, 1, new BigDecimal("10.00"))));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                purchaseOrderService.updatePurchaseOrder(1, request)
+        );
+
+        assertTrue(ex.getMessage().contains("Cannot edit purchase order in 'Cancelled' status"));
+        verify(purchaseOrderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updatePurchaseOrder rejects edit when vendor ID does not exist")
+    void updatePurchaseOrder_InvalidVendor_ThrowsIllegalArgumentException() {
+        sampleOrder.setStatus("Pending");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+        when(vendorRepository.existsById(999)).thenReturn(false);
+
+        UpdatePurchaseOrderRequest request = new UpdatePurchaseOrderRequest();
+        request.setVendorId(999);
+        request.setOrderDate(LocalDate.of(2026, 3, 1));
+        request.setItems(List.of(new UpdatePurchaseOrderRequest.OrderItemRequest(101, 1, new BigDecimal("10.00"))));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                purchaseOrderService.updatePurchaseOrder(1, request)
+        );
+
+        assertTrue(ex.getMessage().contains("Vendor not found with ID: 999"));
+        verify(purchaseOrderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updatePurchaseOrder rejects edit when a product ID does not exist")
+    void updatePurchaseOrder_InvalidProduct_ThrowsIllegalArgumentException() {
+        sampleOrder.setStatus("Pending");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+        when(vendorRepository.existsById(10)).thenReturn(true);
+        when(productRepository.existsById(888)).thenReturn(false);
+
+        UpdatePurchaseOrderRequest request = new UpdatePurchaseOrderRequest();
+        request.setVendorId(10);
+        request.setOrderDate(LocalDate.of(2026, 3, 1));
+        request.setItems(List.of(new UpdatePurchaseOrderRequest.OrderItemRequest(888, 1, new BigDecimal("10.00"))));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                purchaseOrderService.updatePurchaseOrder(1, request)
+        );
+
+        assertTrue(ex.getMessage().contains("Product not found with ID: 888"));
+        verify(purchaseOrderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updatePurchaseOrder rejects edit with duplicate product IDs")
+    void updatePurchaseOrder_DuplicateProducts_ThrowsIllegalArgumentException() {
+        sampleOrder.setStatus("Pending");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+        when(vendorRepository.existsById(10)).thenReturn(true);
+        when(productRepository.existsById(101)).thenReturn(true);
+
+        UpdatePurchaseOrderRequest request = new UpdatePurchaseOrderRequest();
+        request.setVendorId(10);
+        request.setOrderDate(LocalDate.of(2026, 3, 1));
+        request.setItems(List.of(
+                new UpdatePurchaseOrderRequest.OrderItemRequest(101, 1, new BigDecimal("10.00")),
+                new UpdatePurchaseOrderRequest.OrderItemRequest(101, 2, new BigDecimal("10.00"))
+        ));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                purchaseOrderService.updatePurchaseOrder(1, request)
+        );
+
+        assertTrue(ex.getMessage().contains("Duplicate product ID found in purchase order items: 101"));
+        verify(purchaseOrderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updatePurchaseOrder rejects edit with invalid quantity (<= 0)")
+    void updatePurchaseOrder_InvalidQuantity_ThrowsIllegalArgumentException() {
+        sampleOrder.setStatus("Pending");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+        when(vendorRepository.existsById(10)).thenReturn(true);
+        when(productRepository.existsById(101)).thenReturn(true);
+
+        UpdatePurchaseOrderRequest request = new UpdatePurchaseOrderRequest();
+        request.setVendorId(10);
+        request.setOrderDate(LocalDate.of(2026, 3, 1));
+        request.setItems(List.of(new UpdatePurchaseOrderRequest.OrderItemRequest(101, 0, new BigDecimal("10.00"))));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                purchaseOrderService.updatePurchaseOrder(1, request)
+        );
+
+        assertTrue(ex.getMessage().contains("Quantity must be greater than zero for product ID: 101"));
+        verify(purchaseOrderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updatePurchaseOrder rejects edit with invalid unit price (< 0)")
+    void updatePurchaseOrder_InvalidPrice_ThrowsIllegalArgumentException() {
+        sampleOrder.setStatus("Pending");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+        when(vendorRepository.existsById(10)).thenReturn(true);
+        when(productRepository.existsById(101)).thenReturn(true);
+
+        UpdatePurchaseOrderRequest request = new UpdatePurchaseOrderRequest();
+        request.setVendorId(10);
+        request.setOrderDate(LocalDate.of(2026, 3, 1));
+        request.setItems(List.of(new UpdatePurchaseOrderRequest.OrderItemRequest(101, 2, new BigDecimal("-5.00"))));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                purchaseOrderService.updatePurchaseOrder(1, request)
+        );
+
+        assertTrue(ex.getMessage().contains("Unit price cannot be negative for product ID: 101"));
+        verify(purchaseOrderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updatePurchaseOrder propagates exception when line item save fails to ensure transaction rollback")
+    void updatePurchaseOrder_TransactionRollbackWhereApplicable() {
+        sampleOrder.setStatus("Pending");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+        when(vendorRepository.existsById(10)).thenReturn(true);
+        when(productRepository.existsById(101)).thenReturn(true);
+        when(purchaseOrderItemRepository.findByIdPurchaseOrderId(1)).thenReturn(Collections.emptyList());
+        when(purchaseOrderRepository.save(any(PurchaseOrder.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(purchaseOrderItemRepository.save(any(PurchaseOrderItem.class)))
+                .thenThrow(new RuntimeException("Simulated item update DB failure"));
+
+        UpdatePurchaseOrderRequest request = new UpdatePurchaseOrderRequest();
+        request.setVendorId(10);
+        request.setOrderDate(LocalDate.of(2026, 3, 1));
+        request.setItems(List.of(new UpdatePurchaseOrderRequest.OrderItemRequest(101, 2, new BigDecimal("100.00"))));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+                purchaseOrderService.updatePurchaseOrder(1, request)
+        );
+
+        assertEquals("Simulated item update DB failure", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("updatePurchaseOrder throws NoSuchElementException when PO ID is not found")
+    void updatePurchaseOrder_NotFound_ThrowsNoSuchElementException() {
+        when(purchaseOrderRepository.findById(999)).thenReturn(Optional.empty());
+
+        UpdatePurchaseOrderRequest request = new UpdatePurchaseOrderRequest();
+        request.setVendorId(10);
+
+        assertThrows(NoSuchElementException.class, () ->
+                purchaseOrderService.updatePurchaseOrder(999, request)
         );
     }
 }

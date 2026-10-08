@@ -5,6 +5,7 @@ const STATUS_CLASS = {
   Approved:    "badge-approved",
   Completed:   "badge-completed",
   Rejected:    "badge-rejected",
+  Cancelled:   "badge-cancelled",
   // Vendors / products
   Active:      "badge-active",
   Inactive:    "badge-inactive",

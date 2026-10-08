@@ -2,6 +2,7 @@ package com.poms.backend.controller;
 
 import com.poms.backend.config.OpenApiConfig;
 import com.poms.backend.dto.CreatePurchaseOrderRequest;
+import com.poms.backend.dto.UpdatePurchaseOrderRequest;
 import com.poms.backend.dto.UpdateStatusRequest;
 import com.poms.backend.entity.PurchaseOrder;
 import com.poms.backend.entity.PurchaseOrderItem;
@@ -223,6 +224,94 @@ public class PurchaseOrderController {
 
         try {
             PurchaseOrder updated = purchaseOrderService.updateStatus(id, request.getStatus());
+            return ResponseEntity.ok(updated);
+        } catch (java.util.NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "Purchase order not found"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * PATCH /api/purchase-orders/:id/cancel
+     * Cancels an existing purchase order.
+     * Cancellation is only permitted from 'Pending' or 'Approved' statuses.
+     * Allowed roles: Admin, Manager only (enforced in SecurityConfig).
+     */
+    @PatchMapping("/{id}/cancel")
+    @Operation(
+            summary = "Cancel a purchase order",
+            description = "Protected endpoint. Cancels a purchase order. Cancellation is only permitted from 'Pending' or 'Approved' statuses. "
+                    + "ROLE RESTRICTION: Only users with ADMIN or MANAGER role are authorized. Users with EMPLOYEE role will receive HTTP 403 Forbidden."
+    )
+    @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Purchase order cancelled successfully",
+                    content = @Content(schema = @Schema(implementation = PurchaseOrder.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Cannot cancel purchase order from current status"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Missing or invalid JWT Bearer token"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - Only ADMIN and MANAGER roles can cancel purchase orders"),
+            @ApiResponse(responseCode = "404", description = "Purchase order not found with specified ID")
+    })
+    public ResponseEntity<?> cancelPurchaseOrder(
+            @Parameter(description = "Primary key ID of the purchase order to cancel", required = true, example = "1")
+            @PathVariable Integer id) {
+        if (id == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Purchase order ID is required"));
+        }
+        try {
+            PurchaseOrder cancelled = purchaseOrderService.cancelPurchaseOrder(id);
+            return ResponseEntity.ok(cancelled);
+        } catch (java.util.NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "Purchase order not found"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * PUT /api/purchase-orders/:id
+     * Updates an existing purchase order and its line items.
+     * Editing is allowed only when current status is 'Pending'.
+     * Allowed roles: Admin, Manager only (enforced in SecurityConfig).
+     */
+    @PutMapping("/{id}")
+    @Operation(
+            summary = "Update an existing purchase order",
+            description = "Protected endpoint. Updates an existing purchase order and its line items. Editing is only permitted when status is 'Pending'. Preserves immutable metadata while recalculating totalAmount on the server. "
+                    + "ROLE RESTRICTION: Only users with ADMIN or MANAGER role are authorized. Users with EMPLOYEE role will receive HTTP 403 Forbidden."
+    )
+    @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Purchase order updated successfully",
+                    content = @Content(schema = @Schema(implementation = PurchaseOrder.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Validation error, invalid status, duplicate products, or invalid vendor/product"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Missing or invalid JWT Bearer token"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - Only ADMIN and MANAGER roles can edit purchase orders"),
+            @ApiResponse(responseCode = "404", description = "Purchase order not found with specified ID")
+    })
+    public ResponseEntity<?> updatePurchaseOrder(
+            @Parameter(description = "Primary key ID of the purchase order to update", required = true, example = "1")
+            @PathVariable Integer id,
+            @RequestBody UpdatePurchaseOrderRequest request) {
+        if (id == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Purchase order ID is required"));
+        }
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Request body is required"));
+        }
+        try {
+            PurchaseOrder updated = purchaseOrderService.updatePurchaseOrder(id, request);
             return ResponseEntity.ok(updated);
         } catch (java.util.NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)

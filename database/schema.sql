@@ -74,7 +74,7 @@ CREATE TABLE `purchase_orders` (
   `order_date` DATE NOT NULL,
   `expected_delivery` DATE DEFAULT NULL,
   `total_amount` DECIMAL(12,2) DEFAULT '0.00',
-  `status` ENUM('Pending','Approved','Rejected','Completed') DEFAULT 'Pending',
+  `status` ENUM('Pending','Approved','Rejected','Completed','Cancelled') DEFAULT 'Pending',
   `created_by` INT DEFAULT NULL,
   `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),

@@ -7,11 +7,10 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Request body for POST /api/purchase-orders.
- * Contains the PO header fields plus a list of line items.
+ * Request payload for PUT /api/purchase-orders/{id}
  */
-@Schema(description = "Purchase order creation payload including header fields and line items")
-public class CreatePurchaseOrderRequest {
+@Schema(description = "Purchase order update payload including editable header fields and line items")
+public class UpdatePurchaseOrderRequest {
 
     @Schema(description = "ID of the vendor supplier", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
     private Integer vendorId;
@@ -22,16 +21,17 @@ public class CreatePurchaseOrderRequest {
     @Schema(description = "Expected delivery date (YYYY-MM-DD)", example = "2026-10-20")
     private LocalDate expectedDelivery;
 
-    @Schema(description = "Total purchase order amount (optional; calculated authoritative value computed by server from line items)", example = "60000.00", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-    private BigDecimal totalAmount;
-
-    @Schema(description = "Initial PO status (defaults to Pending)", example = "Pending", allowableValues = {"Pending", "Approved", "Rejected", "Completed", "Cancelled"})
-    private String status;
-
-    @Schema(description = "List of line items included in the purchase order")
+    @Schema(description = "List of line items included in the purchase order", requiredMode = Schema.RequiredMode.REQUIRED)
     private List<OrderItemRequest> items;
 
-    public CreatePurchaseOrderRequest() {
+    public UpdatePurchaseOrderRequest() {
+    }
+
+    public UpdatePurchaseOrderRequest(Integer vendorId, LocalDate orderDate, LocalDate expectedDelivery, List<OrderItemRequest> items) {
+        this.vendorId = vendorId;
+        this.orderDate = orderDate;
+        this.expectedDelivery = expectedDelivery;
+        this.items = items;
     }
 
     public Integer getVendorId() {
@@ -58,22 +58,6 @@ public class CreatePurchaseOrderRequest {
         this.expectedDelivery = expectedDelivery;
     }
 
-    public BigDecimal getTotalAmount() {
-        return totalAmount;
-    }
-
-    public void setTotalAmount(BigDecimal totalAmount) {
-        this.totalAmount = totalAmount;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
     public List<OrderItemRequest> getItems() {
         return items;
     }
@@ -83,9 +67,9 @@ public class CreatePurchaseOrderRequest {
     }
 
     /**
-     * Nested DTO for individual line items in the create-PO request.
+     * Line item detail for purchase order update.
      */
-    @Schema(description = "Line item detail for purchase order")
+    @Schema(description = "Line item detail for purchase order update")
     public static class OrderItemRequest {
 
         @Schema(description = "Product ID", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -98,6 +82,12 @@ public class CreatePurchaseOrderRequest {
         private BigDecimal unitPrice;
 
         public OrderItemRequest() {
+        }
+
+        public OrderItemRequest(Integer productId, Integer quantity, BigDecimal unitPrice) {
+            this.productId = productId;
+            this.quantity = quantity;
+            this.unitPrice = unitPrice;
         }
 
         public Integer getProductId() {
