@@ -19,6 +19,10 @@ public class UpdateStatusRequest {
     public UpdateStatusRequest() {
     }
 
+    public UpdateStatusRequest(String status) {
+        this.status = status;
+    }
+
     public String getStatus() {
         return status;
     }

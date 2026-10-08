@@ -22,7 +22,7 @@ public class CreatePurchaseOrderRequest {
     @Schema(description = "Expected delivery date (YYYY-MM-DD)", example = "2026-10-20")
     private LocalDate expectedDelivery;
 
-    @Schema(description = "Total purchase order amount", example = "60000.00", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "Total purchase order amount (optional; calculated authoritative value computed by server from line items)", example = "60000.00", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private BigDecimal totalAmount;
 
     @Schema(description = "Initial PO status (defaults to Pending)", example = "Pending", allowableValues = {"Pending", "Approved", "Rejected", "Completed"})

@@ -136,70 +136,68 @@ public class PurchaseOrderController {
                     description = "Purchase order created successfully",
                     content = @Content(schema = @Schema(implementation = PurchaseOrder.class))
             ),
-            @ApiResponse(responseCode = "400", description = "Bad Request - Missing required fields (vendorId, orderDate, totalAmount)"),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Validation error, missing required fields, or duplicate product IDs"),
             @ApiResponse(responseCode = "401", description = "Unauthorized - Missing or invalid JWT Bearer token")
     })
     public ResponseEntity<?> createPurchaseOrder(
             @RequestBody CreatePurchaseOrderRequest request,
-            @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+            @Parameter(hidden = true) @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        // Basic validation
-        if (request.getVendorId() == null || request.getOrderDate() == null
-                || request.getTotalAmount() == null) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "vendorId, orderDate, and totalAmount are required"));
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Request body is required"));
         }
 
-        // Extract the current user from the JWT so we can set createdBy
-        String token = authHeader.substring(7);
-        String email = jwtUtil.extractUsername(token);
+        // Basic validation
+        if (request.getVendorId() == null || request.getOrderDate() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "vendorId and orderDate are required"));
+        }
+
+        // Extract the current user from the JWT Bearer token or security context
+        String email = null;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            try {
+                email = jwtUtil.extractUsername(token);
+            } catch (Exception ignored) {
+            }
+        }
+        if (email == null) {
+            org.springframework.security.core.Authentication auth =
+                    org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+                email = auth.getName();
+            }
+        }
+
+        if (email == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Authenticated user not found"));
+        }
+
         Optional<User> userOpt = userService.findByEmail(email);
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Authenticated user not found"));
         }
 
-        // Generate PO number: PO-<timestamp>
-        String poNumber = "PO-" + System.currentTimeMillis();
-
-        // Build and save the PurchaseOrder header
-        PurchaseOrder po = new PurchaseOrder();
-        po.setPoNumber(poNumber);
-        po.setVendorId(request.getVendorId());
-        po.setOrderDate(request.getOrderDate() != null ? request.getOrderDate() : LocalDate.now());
-        po.setExpectedDelivery(request.getExpectedDelivery());
-        po.setTotalAmount(request.getTotalAmount());
-        po.setStatus(request.getStatus() != null ? request.getStatus() : "Pending");
-        po.setCreatedBy(userOpt.get().getId());
-        po.setCreatedAt(LocalDateTime.now());
-
-        PurchaseOrder savedPo = purchaseOrderService.savePurchaseOrder(po);
-
-        // Save line items if provided
-        if (request.getItems() != null) {
-            for (CreatePurchaseOrderRequest.OrderItemRequest itemReq : request.getItems()) {
-                PurchaseOrderItem item = new PurchaseOrderItem();
-                PurchaseOrderItemId itemId = new PurchaseOrderItemId(
-                        savedPo.getId(), itemReq.getProductId());
-                item.setId(itemId);
-                item.setQuantity(itemReq.getQuantity());
-                item.setUnitPrice(itemReq.getUnitPrice());
-                purchaseOrderItemService.savePurchaseOrderItem(item);
-            }
+        try {
+            PurchaseOrder savedPo = purchaseOrderService.createPurchaseOrder(request, userOpt.get().getId());
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedPo);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedPo);
     }
 
     /**
      * PATCH /api/purchase-orders/:id/status
-     * Updates the status of a purchase order.
+     * Updates the status of a purchase order adhering to state machine transition rules.
      * Allowed roles: Admin, Manager only (enforced in SecurityConfig).
      */
     @PatchMapping("/{id}/status")
     @Operation(
             summary = "Update purchase order status",
-            description = "Protected endpoint. Updates the status (Pending, Approved, Rejected, Completed) of a purchase order. "
+            description = "Protected endpoint. Updates the status (Pending, Approved, Rejected, Completed) of a purchase order adhering to state machine rules. "
                     + "ROLE RESTRICTION: Only users with ADMIN or MANAGER role are authorized. Users with EMPLOYEE role will receive HTTP 403 Forbidden."
     )
     @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
@@ -209,7 +207,7 @@ public class PurchaseOrderController {
                     description = "Purchase order status updated successfully",
                     content = @Content(schema = @Schema(implementation = PurchaseOrder.class))
             ),
-            @ApiResponse(responseCode = "400", description = "Bad Request - Missing or blank status field"),
+            @ApiResponse(responseCode = "400", description = "Bad Request - Missing status or invalid status transition"),
             @ApiResponse(responseCode = "401", description = "Unauthorized - Missing or invalid JWT Bearer token"),
             @ApiResponse(responseCode = "403", description = "Forbidden - Only ADMIN and MANAGER roles can update PO status"),
             @ApiResponse(responseCode = "404", description = "Purchase order not found with specified ID")
@@ -218,20 +216,20 @@ public class PurchaseOrderController {
             @Parameter(description = "Primary key ID of the purchase order to update", required = true, example = "1")
             @PathVariable Integer id,
             @RequestBody UpdateStatusRequest request) {
-        if (request.getStatus() == null || request.getStatus().isBlank()) {
+        if (request == null || request.getStatus() == null || request.getStatus().isBlank()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "status field is required"));
         }
 
-        Optional<PurchaseOrder> poOpt = purchaseOrderService.getPurchaseOrderById(id);
-        if (poOpt.isEmpty()) {
+        try {
+            PurchaseOrder updated = purchaseOrderService.updateStatus(id, request.getStatus());
+            return ResponseEntity.ok(updated);
+        } catch (java.util.NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", "Purchase order not found"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage()));
         }
-
-        PurchaseOrder po = poOpt.get();
-        po.setStatus(request.getStatus());
-        PurchaseOrder updated = purchaseOrderService.savePurchaseOrder(po);
-        return ResponseEntity.ok(updated);
     }
 }
