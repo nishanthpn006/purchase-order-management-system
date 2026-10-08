@@ -149,6 +149,9 @@ public class SecurityConfig {
                 // Product deactivation restricted to Admin and Manager roles
                 .requestMatchers(HttpMethod.PATCH, "/api/products/*/deactivate")
                     .hasAnyRole("ADMIN", "MANAGER")
+                // Goods receipt creation allowed for Admin, Manager, and Employee roles
+                .requestMatchers(HttpMethod.POST, "/api/goods-receipts")
+                    .hasAnyRole("ADMIN", "MANAGER", "EMPLOYEE")
                 // All other endpoints require a valid JWT
                 .anyRequest().authenticated()
             )
