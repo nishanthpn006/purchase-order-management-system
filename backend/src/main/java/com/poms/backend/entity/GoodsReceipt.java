@@ -1,5 +1,4 @@
 package com.poms.backend.entity;
-
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -7,10 +6,12 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "goods_receipts")
 public class GoodsReceipt {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
+
+    @Column(name = "gr_number", nullable = false, unique = true)
+    private String grNumber;
 
     @Column(name = "purchase_order_id", nullable = false)
     private Integer purchaseOrderId;
@@ -35,6 +36,14 @@ public class GoodsReceipt {
 
     public void setId(Integer id) {
         this.id = id;
+    }
+
+    public String getGrNumber() {
+        return grNumber;
+    }
+
+    public void setGrNumber(String grNumber) {
+        this.grNumber = grNumber;
     }
 
     public Integer getPurchaseOrderId() {
