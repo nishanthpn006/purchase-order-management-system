@@ -60,6 +60,8 @@ export const deactivateProduct       = (id) => api.patch(`/products/${id}/deacti
 export const getPurchaseOrders       = () => api.get("/purchase-orders");
 export const getPurchaseOrderById    = (id) => api.get(`/purchase-orders/${id}`);
 export const createPurchaseOrder     = (data) => api.post("/purchase-orders", data);
+export const updatePurchaseOrder     = (id, data) => api.put(`/purchase-orders/${id}`, data);
+export const cancelPurchaseOrder     = (id) => api.patch(`/purchase-orders/${id}/cancel`);
 export const updatePurchaseOrderStatus = (id, status) =>
   api.patch(`/purchase-orders/${id}/status`, { status });
 

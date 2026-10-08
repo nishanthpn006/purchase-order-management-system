@@ -11,7 +11,7 @@ public class UpdateStatusRequest {
     @Schema(
             description = "New purchase order status (Pending, Approved, Rejected, Completed)",
             example = "Approved",
-            allowableValues = {"Pending", "Approved", "Rejected", "Completed"},
+            allowableValues = {"Pending", "Approved", "Rejected", "Completed", "Cancelled"},
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     private String status;

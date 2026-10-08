@@ -1169,7 +1169,8 @@
 }
 
 .badge-inactive,
-.badge-unavailable {
+.badge-unavailable,
+.badge-cancelled {
   background: var(--background);
   color: var(--text-muted);
   border-color: var(--border);
