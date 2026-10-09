@@ -1,9 +1,14 @@
 package com.poms.backend.service;
 
 import com.poms.backend.dto.CreatePurchaseOrderRequest;
+import com.poms.backend.dto.PurchaseOrderReceivingDetailsResponse;
+import com.poms.backend.dto.PurchaseOrderReceivingItemResponse;
 import com.poms.backend.dto.UpdatePurchaseOrderRequest;
+import com.poms.backend.entity.Product;
 import com.poms.backend.entity.PurchaseOrder;
 import com.poms.backend.entity.PurchaseOrderItem;
+import com.poms.backend.entity.Vendor;
+import com.poms.backend.repository.GoodsReceiptItemRepository;
 import com.poms.backend.repository.ProductRepository;
 import com.poms.backend.repository.PurchaseOrderItemRepository;
 import com.poms.backend.repository.PurchaseOrderRepository;
@@ -45,6 +50,9 @@ class PurchaseOrderServiceTest {
 
     @Mock
     private ProductRepository productRepository;
+
+    @Mock
+    private GoodsReceiptItemRepository goodsReceiptItemRepository;
 
     @InjectMocks
     private PurchaseOrderService purchaseOrderService;
@@ -845,5 +853,257 @@ class PurchaseOrderServiceTest {
         assertThrows(NoSuchElementException.class, () ->
                 purchaseOrderService.updatePurchaseOrder(999, request)
         );
+    }
+
+    // ── Milestone: Purchase Order Receiving Details Tests ──
+
+    @Test
+    @DisplayName("getPurchaseOrderReceivingDetails returns zero received quantities when PO has no receipts")
+    void getPurchaseOrderReceivingDetails_WithNoReceipts_ReturnsZeroReceivedQuantities() {
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+
+        Vendor vendor = new Vendor();
+        vendor.setId(10);
+        vendor.setVendorName("Dell Technologies");
+        when(vendorRepository.findById(10)).thenReturn(Optional.of(vendor));
+
+        PurchaseOrderItem item = new PurchaseOrderItem();
+        item.setId(new com.poms.backend.entity.PurchaseOrderItemId(1, 101));
+        item.setQuantity(20);
+        when(purchaseOrderItemRepository.findByIdPurchaseOrderId(1)).thenReturn(List.of(item));
+
+        Product product = new Product();
+        product.setId(101);
+        product.setProductName("Dell Latitude");
+        when(productRepository.findById(101)).thenReturn(Optional.of(product));
+
+        when(goodsReceiptItemRepository.sumReceivedQuantitiesByPurchaseOrderId(1)).thenReturn(Collections.emptyList());
+
+        PurchaseOrderReceivingDetailsResponse details = purchaseOrderService.getPurchaseOrderReceivingDetails(1);
+
+        assertNotNull(details);
+        assertEquals(1, details.getPurchaseOrderId());
+        assertEquals("PO-2026-001", details.getPoNumber());
+        assertEquals("Pending", details.getStatus());
+        assertEquals(10, details.getVendorId());
+        assertEquals("Dell Technologies", details.getVendorName());
+        assertEquals(LocalDate.of(2026, 3, 1), details.getOrderDate());
+        assertEquals(1, details.getItems().size());
+
+        PurchaseOrderReceivingItemResponse itemResp = details.getItems().get(0);
+        assertEquals(101, itemResp.getProductId());
+        assertEquals("Dell Latitude", itemResp.getProductName());
+        assertEquals(20, itemResp.getOrderedQuantity());
+        assertEquals(0, itemResp.getReceivedQuantity());
+        assertEquals(20, itemResp.getRemainingQuantity());
+    }
+
+    @Test
+    @DisplayName("getPurchaseOrderReceivingDetails calculates correct remaining quantity for partially received PO")
+    void getPurchaseOrderReceivingDetails_PartiallyReceived_ReturnsCorrectRemainingQuantities() {
+        sampleOrder.setStatus("Approved");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+
+        Vendor vendor = new Vendor();
+        vendor.setId(10);
+        vendor.setVendorName("Dell Technologies");
+        when(vendorRepository.findById(10)).thenReturn(Optional.of(vendor));
+
+        PurchaseOrderItem item = new PurchaseOrderItem();
+        item.setId(new com.poms.backend.entity.PurchaseOrderItemId(1, 101));
+        item.setQuantity(20);
+        when(purchaseOrderItemRepository.findByIdPurchaseOrderId(1)).thenReturn(List.of(item));
+
+        Product product = new Product();
+        product.setId(101);
+        product.setProductName("Dell Latitude");
+        when(productRepository.findById(101)).thenReturn(Optional.of(product));
+
+        // 12 previously received
+        List<Object[]> sumList = List.<Object[]>of(new Object[]{101, 12L});
+        when(goodsReceiptItemRepository.sumReceivedQuantitiesByPurchaseOrderId(1)).thenReturn(sumList);
+
+        PurchaseOrderReceivingDetailsResponse details = purchaseOrderService.getPurchaseOrderReceivingDetails(1);
+
+        assertNotNull(details);
+        assertEquals(1, details.getItems().size());
+        PurchaseOrderReceivingItemResponse itemResp = details.getItems().get(0);
+        assertEquals(101, itemResp.getProductId());
+        assertEquals("Dell Latitude", itemResp.getProductName());
+        assertEquals(20, itemResp.getOrderedQuantity());
+        assertEquals(12, itemResp.getReceivedQuantity());
+        assertEquals(8, itemResp.getRemainingQuantity());
+    }
+
+    @Test
+    @DisplayName("getPurchaseOrderReceivingDetails returns zero remaining quantity for fully received PO")
+    void getPurchaseOrderReceivingDetails_FullyReceived_ReturnsZeroRemainingQuantities() {
+        sampleOrder.setStatus("Completed");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+
+        Vendor vendor = new Vendor();
+        vendor.setId(10);
+        vendor.setVendorName("Dell Technologies");
+        when(vendorRepository.findById(10)).thenReturn(Optional.of(vendor));
+
+        PurchaseOrderItem item = new PurchaseOrderItem();
+        item.setId(new com.poms.backend.entity.PurchaseOrderItemId(1, 101));
+        item.setQuantity(10);
+        when(purchaseOrderItemRepository.findByIdPurchaseOrderId(1)).thenReturn(List.of(item));
+
+        Product product = new Product();
+        product.setId(101);
+        product.setProductName("Dell Latitude");
+        when(productRepository.findById(101)).thenReturn(Optional.of(product));
+
+        // 10 previously received
+        List<Object[]> sumList = List.<Object[]>of(new Object[]{101, 10L});
+        when(goodsReceiptItemRepository.sumReceivedQuantitiesByPurchaseOrderId(1)).thenReturn(sumList);
+
+        PurchaseOrderReceivingDetailsResponse details = purchaseOrderService.getPurchaseOrderReceivingDetails(1);
+
+        assertNotNull(details);
+        assertEquals(1, details.getItems().size());
+        PurchaseOrderReceivingItemResponse itemResp = details.getItems().get(0);
+        assertEquals(10, itemResp.getOrderedQuantity());
+        assertEquals(10, itemResp.getReceivedQuantity());
+        assertEquals(0, itemResp.getRemainingQuantity());
+    }
+
+    @Test
+    @DisplayName("getPurchaseOrderReceivingDetails calculates multiple lines independently")
+    void getPurchaseOrderReceivingDetails_MultipleLines_CalculatedIndependently() {
+        sampleOrder.setStatus("Approved");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+
+        Vendor vendor = new Vendor();
+        vendor.setId(10);
+        vendor.setVendorName("Supplier Co");
+        when(vendorRepository.findById(10)).thenReturn(Optional.of(vendor));
+
+        PurchaseOrderItem item1 = new PurchaseOrderItem();
+        item1.setId(new com.poms.backend.entity.PurchaseOrderItemId(1, 101));
+        item1.setQuantity(10);
+
+        PurchaseOrderItem item2 = new PurchaseOrderItem();
+        item2.setId(new com.poms.backend.entity.PurchaseOrderItemId(1, 102));
+        item2.setQuantity(20);
+
+        PurchaseOrderItem item3 = new PurchaseOrderItem();
+        item3.setId(new com.poms.backend.entity.PurchaseOrderItemId(1, 103));
+        item3.setQuantity(15);
+
+        when(purchaseOrderItemRepository.findByIdPurchaseOrderId(1)).thenReturn(List.of(item1, item2, item3));
+
+        Product prod1 = new Product();
+        prod1.setId(101);
+        prod1.setProductName("Product A");
+
+        Product prod2 = new Product();
+        prod2.setId(102);
+        prod2.setProductName("Product B");
+
+        Product prod3 = new Product();
+        prod3.setId(103);
+        prod3.setProductName("Product C");
+
+        when(productRepository.findById(101)).thenReturn(Optional.of(prod1));
+        when(productRepository.findById(102)).thenReturn(Optional.of(prod2));
+        when(productRepository.findById(103)).thenReturn(Optional.of(prod3));
+
+        // Line 1: 4 received; Line 2: 20 received; Line 3: not received (missing from sum)
+        List<Object[]> sumList = List.of(
+                new Object[]{101, 4L},
+                new Object[]{102, 20L}
+        );
+        when(goodsReceiptItemRepository.sumReceivedQuantitiesByPurchaseOrderId(1)).thenReturn(sumList);
+
+        PurchaseOrderReceivingDetailsResponse details = purchaseOrderService.getPurchaseOrderReceivingDetails(1);
+
+        assertNotNull(details);
+        assertEquals(3, details.getItems().size());
+
+        // Line 1: 10 ordered, 4 received -> 6 remaining
+        PurchaseOrderReceivingItemResponse r1 = details.getItems().get(0);
+        assertEquals(101, r1.getProductId());
+        assertEquals("Product A", r1.getProductName());
+        assertEquals(10, r1.getOrderedQuantity());
+        assertEquals(4, r1.getReceivedQuantity());
+        assertEquals(6, r1.getRemainingQuantity());
+
+        // Line 2: 20 ordered, 20 received -> 0 remaining
+        PurchaseOrderReceivingItemResponse r2 = details.getItems().get(1);
+        assertEquals(102, r2.getProductId());
+        assertEquals("Product B", r2.getProductName());
+        assertEquals(20, r2.getOrderedQuantity());
+        assertEquals(20, r2.getReceivedQuantity());
+        assertEquals(0, r2.getRemainingQuantity());
+
+        // Line 3: 15 ordered, 0 received -> 15 remaining
+        PurchaseOrderReceivingItemResponse r3 = details.getItems().get(2);
+        assertEquals(103, r3.getProductId());
+        assertEquals("Product C", r3.getProductName());
+        assertEquals(15, r3.getOrderedQuantity());
+        assertEquals(0, r3.getReceivedQuantity());
+        assertEquals(15, r3.getRemainingQuantity());
+    }
+
+    @Test
+    @DisplayName("getPurchaseOrderReceivingDetails throws NoSuchElementException for non-existent PO")
+    void getPurchaseOrderReceivingDetails_NonExistentPo_ThrowsNoSuchElementException() {
+        when(purchaseOrderRepository.findById(999)).thenReturn(Optional.empty());
+
+        NoSuchElementException ex = assertThrows(NoSuchElementException.class, () ->
+                purchaseOrderService.getPurchaseOrderReceivingDetails(999)
+        );
+
+        assertTrue(ex.getMessage().contains("Purchase order not found with ID: 999"));
+    }
+
+    @Test
+    @DisplayName("getPurchaseOrderReceivingDetails never returns negative remaining quantity for inconsistent data")
+    void getPurchaseOrderReceivingDetails_InconsistentData_RemainingNeverNegative() {
+        sampleOrder.setStatus("Approved");
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+
+        PurchaseOrderItem item = new PurchaseOrderItem();
+        item.setId(new com.poms.backend.entity.PurchaseOrderItemId(1, 101));
+        item.setQuantity(10);
+        when(purchaseOrderItemRepository.findByIdPurchaseOrderId(1)).thenReturn(List.of(item));
+
+        Product product = new Product();
+        product.setId(101);
+        product.setProductName("Test Item");
+        when(productRepository.findById(101)).thenReturn(Optional.of(product));
+
+        // Inconsistent receipt sum: 15 received against 10 ordered
+        List<Object[]> sumList = List.<Object[]>of(new Object[]{101, 15L});
+        when(goodsReceiptItemRepository.sumReceivedQuantitiesByPurchaseOrderId(1)).thenReturn(sumList);
+
+        PurchaseOrderReceivingDetailsResponse details = purchaseOrderService.getPurchaseOrderReceivingDetails(1);
+
+        assertNotNull(details);
+        PurchaseOrderReceivingItemResponse itemResp = details.getItems().get(0);
+        assertEquals(10, itemResp.getOrderedQuantity());
+        assertEquals(15, itemResp.getReceivedQuantity());
+        assertEquals(0, itemResp.getRemainingQuantity(), "Remaining quantity must not be negative");
+    }
+
+    @Test
+    @DisplayName("getPurchaseOrderReceivingDetails performs no save or delete operations (read-only verification)")
+    void getPurchaseOrderReceivingDetails_PerformsNoSaveOrUpdateOperations() {
+        when(purchaseOrderRepository.findById(1)).thenReturn(Optional.of(sampleOrder));
+        when(purchaseOrderItemRepository.findByIdPurchaseOrderId(1)).thenReturn(Collections.emptyList());
+        when(goodsReceiptItemRepository.sumReceivedQuantitiesByPurchaseOrderId(1)).thenReturn(Collections.emptyList());
+
+        purchaseOrderService.getPurchaseOrderReceivingDetails(1);
+
+        verify(purchaseOrderRepository, never()).save(any());
+        verify(purchaseOrderRepository, never()).delete(any());
+        verify(purchaseOrderItemRepository, never()).save(any());
+        verify(purchaseOrderItemRepository, never()).delete(any());
+        verify(vendorRepository, never()).save(any());
+        verify(productRepository, never()).save(any());
+        verify(goodsReceiptItemRepository, never()).save(any());
     }
 }

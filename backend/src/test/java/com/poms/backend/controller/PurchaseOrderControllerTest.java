@@ -2,6 +2,9 @@ package com.poms.backend.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.poms.backend.dto.CreatePurchaseOrderRequest;
+import com.poms.backend.dto.PurchaseOrderReceivingDetailsResponse;
+import com.poms.backend.dto.PurchaseOrderReceivingItemResponse;
+import com.poms.backend.dto.UpdatePurchaseOrderRequest;
 import com.poms.backend.dto.UpdateStatusRequest;
 import com.poms.backend.entity.PurchaseOrder;
 import com.poms.backend.entity.User;
@@ -30,6 +33,7 @@ import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -404,5 +408,84 @@ class PurchaseOrderControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error", containsString("Purchase order not found")));
+    }
+
+    // ── Milestone: GET /api/purchase-orders/:id/receiving-details Tests ──
+
+    @Test
+    @DisplayName("GET /api/purchase-orders/:id/receiving-details returns HTTP 200 with expected response for authenticated user")
+    @WithMockUser(username = "employee@poms.com", roles = "EMPLOYEE")
+    void getPurchaseOrderReceivingDetails_Authenticated_Returns200WithExpectedResponse() throws Exception {
+        PurchaseOrderReceivingDetailsResponse response = new PurchaseOrderReceivingDetailsResponse(
+                10,
+                "PO-0010",
+                "Approved",
+                3,
+                "Dell",
+                LocalDate.of(2026, 10, 9),
+                List.of(new PurchaseOrderReceivingItemResponse(
+                        1,
+                        "Dell Latitude",
+                        20,
+                        12,
+                        8
+                ))
+        );
+
+        when(purchaseOrderService.getPurchaseOrderReceivingDetails(10)).thenReturn(response);
+
+        mockMvc.perform(get("/api/purchase-orders/10/receiving-details"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.purchaseOrderId", is(10)))
+                .andExpect(jsonPath("$.poNumber", is("PO-0010")))
+                .andExpect(jsonPath("$.status", is("Approved")))
+                .andExpect(jsonPath("$.vendorId", is(3)))
+                .andExpect(jsonPath("$.vendorName", is("Dell")))
+                .andExpect(jsonPath("$.orderDate", is("2026-10-09")))
+                .andExpect(jsonPath("$.items[0].productId", is(1)))
+                .andExpect(jsonPath("$.items[0].productName", is("Dell Latitude")))
+                .andExpect(jsonPath("$.items[0].orderedQuantity", is(20)))
+                .andExpect(jsonPath("$.items[0].receivedQuantity", is(12)))
+                .andExpect(jsonPath("$.items[0].remainingQuantity", is(8)));
+    }
+
+    @Test
+    @DisplayName("GET /api/purchase-orders/:id/receiving-details allows Admin role and returns HTTP 200")
+    @WithMockUser(username = "admin@poms.com", roles = "ADMIN")
+    void getPurchaseOrderReceivingDetails_AdminRole_Returns200() throws Exception {
+        PurchaseOrderReceivingDetailsResponse response = new PurchaseOrderReceivingDetailsResponse(
+                10,
+                "PO-0010",
+                "Approved",
+                3,
+                "Dell",
+                LocalDate.of(2026, 10, 9),
+                List.of()
+        );
+
+        when(purchaseOrderService.getPurchaseOrderReceivingDetails(10)).thenReturn(response);
+
+        mockMvc.perform(get("/api/purchase-orders/10/receiving-details"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.purchaseOrderId", is(10)));
+    }
+
+    @Test
+    @DisplayName("GET /api/purchase-orders/:id/receiving-details returns HTTP 404 Not Found when PO does not exist")
+    @WithMockUser(roles = "EMPLOYEE")
+    void getPurchaseOrderReceivingDetails_NotFound_Returns404() throws Exception {
+        when(purchaseOrderService.getPurchaseOrderReceivingDetails(999))
+                .thenThrow(new java.util.NoSuchElementException("Purchase order not found with ID: 999"));
+
+        mockMvc.perform(get("/api/purchase-orders/999/receiving-details"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error", containsString("Purchase order not found")));
+    }
+
+    @Test
+    @DisplayName("GET /api/purchase-orders/:id/receiving-details returns HTTP 401 Unauthorized for unauthenticated request")
+    void getPurchaseOrderReceivingDetails_Unauthenticated_Returns401() throws Exception {
+        mockMvc.perform(get("/api/purchase-orders/10/receiving-details"))
+                .andExpect(status().isUnauthorized());
     }
 }
