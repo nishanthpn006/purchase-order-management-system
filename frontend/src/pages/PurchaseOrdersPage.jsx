@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, RefreshCw, X, Plus, Trash2, CheckCircle, AlertTriangle, Edit, Ban, Check, XCircle } from "lucide-react";
+import { Search, RefreshCw, X, Plus, Trash2, CheckCircle, AlertTriangle, Edit, Ban, Check, XCircle, PackageCheck } from "lucide-react";
 import {
   getPurchaseOrders,
   getPurchaseOrderById,
@@ -14,6 +14,7 @@ import { useAuth } from "../context/useAuth";
 import StatusBadge from "../components/StatusBadge";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
+import ReceiveItemsModal from "../components/ReceiveItemsModal";
 import "../styles/poms.css";
 
 function fmt(date) {
@@ -81,6 +82,9 @@ function PurchaseOrdersPage() {
   const [detailError, setDetailError]   = useState("");
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [refreshKey, setRefreshKey]         = useState(0);
+
+  // Receive Items Modal state
+  const [receivePoId, setReceivePoId]   = useState(null);
 
   const handleRefresh = () => {
     setLoading(true);
@@ -229,6 +233,37 @@ function PurchaseOrdersPage() {
       setDetailError(msg);
     } finally {
       setStatusUpdating(false);
+    }
+  };
+
+  // ── Receive Items Modal Handlers ────────────────────────────
+  const handleOpenReceive = (poId) => {
+    const po = orders.find((o) => o.id === poId) || (selectedPO?.id === poId ? selectedPO : null);
+    if (po && po.status !== "Approved") {
+      return;
+    }
+    setIsDetailOpen(false);
+    setReceivePoId(poId);
+  };
+
+  const handleReceiveSuccess = async (receiptData) => {
+    setReceivePoId(null);
+    const grNum = receiptData?.grNumber || receiptData?.gr_number;
+    setSuccessMsg(
+      grNum
+        ? `Goods receipt ${grNum} created successfully.`
+        : "Goods receipt created successfully."
+    );
+    handleRefresh();
+
+    if (selectedPO?.id) {
+      try {
+        const res = await getPurchaseOrderById(selectedPO.id);
+        const data = res.data?.data || res.data;
+        setSelectedPO(data);
+      } catch {
+        // ignore
+      }
     }
   };
 
@@ -780,6 +815,19 @@ function PurchaseOrdersPage() {
                                 <span>Edit</span>
                               </button>
                             )}
+                            {po.status === "Approved" && (
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => handleOpenReceive(po.id)}
+                                style={{ gap: 4, padding: "3px 8px" }}
+                                title="Receive Items"
+                                id={`receive-po-${po.id}-btn`}
+                              >
+                                <PackageCheck size={12} />
+                                <span>Receive Items</span>
+                              </button>
+                            )}
                             {canUpdateStatus && (po.status === "Pending" || po.status === "Approved") && (
                               <button
                                 type="button"
@@ -1111,7 +1159,33 @@ function PurchaseOrdersPage() {
                       border: "1px solid var(--border)",
                     }}
                   >
-                    {canUpdateStatus ? (
+                    {selectedPO.status === "Approved" ? (
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-primary"
+                          style={{ gap: 4 }}
+                          onClick={() => handleOpenReceive(selectedPO.id)}
+                          id="detail-receive-po-btn"
+                        >
+                          <PackageCheck size={13} />
+                          <span>Receive Items</span>
+                        </button>
+                        {canUpdateStatus && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-danger"
+                            style={{ gap: 4 }}
+                            disabled={statusUpdating}
+                            onClick={() => handleOpenCancel(selectedPO)}
+                            id="detail-cancel-po-btn"
+                          >
+                            <Ban size={13} />
+                            <span>Cancel Order</span>
+                          </button>
+                        )}
+                      </div>
+                    ) : canUpdateStatus ? (
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                         {selectedPO.status === "Pending" && (
                           <>
@@ -1165,33 +1239,6 @@ function PurchaseOrdersPage() {
                           </>
                         )}
 
-                        {selectedPO.status === "Approved" && (
-                          <>
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-primary"
-                              style={{ gap: 4 }}
-                              disabled={statusUpdating}
-                              onClick={() => handleStatusUpdate("Completed")}
-                              id="detail-complete-po-btn"
-                            >
-                              <Check size={13} />
-                              <span>Complete</span>
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-danger"
-                              style={{ gap: 4 }}
-                              disabled={statusUpdating}
-                              onClick={() => handleOpenCancel(selectedPO)}
-                              id="detail-cancel-po-btn"
-                            >
-                              <Ban size={13} />
-                              <span>Cancel Order</span>
-                            </button>
-                          </>
-                        )}
-
                         {(selectedPO.status === "Rejected" ||
                           selectedPO.status === "Completed" ||
                           selectedPO.status === "Cancelled") && (
@@ -1201,10 +1248,18 @@ function PurchaseOrdersPage() {
                         )}
                       </div>
                     ) : (
-                      <div style={{ fontSize: "0.76rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
-                        <AlertTriangle size={13} />
-                        <span>Status updates and modifications are restricted to Admin and Manager accounts.</span>
-                      </div>
+                      selectedPO.status === "Rejected" ||
+                      selectedPO.status === "Completed" ||
+                      selectedPO.status === "Cancelled" ? (
+                        <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                          This purchase order is in a terminal state <strong>({selectedPO.status})</strong>. No further actions can be taken.
+                        </span>
+                      ) : (
+                        <div style={{ fontSize: "0.76rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
+                          <AlertTriangle size={13} />
+                          <span>Status updates and modifications are restricted to Admin and Manager accounts.</span>
+                        </div>
+                      )
                     )}
                   </div>
 
@@ -1615,6 +1670,15 @@ function PurchaseOrdersPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── RECEIVE ITEMS MODAL ────────────────────────── */}
+      {receivePoId && (
+        <ReceiveItemsModal
+          purchaseOrderId={receivePoId}
+          onClose={() => setReceivePoId(null)}
+          onSuccess={handleReceiveSuccess}
+        />
       )}
     </>
   );
