@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, PackagePlus, RefreshCw, Plus, X, Edit, Ban, AlertTriangle } from "lucide-react";
 import { getProducts, getVendors, createProduct, updateProduct, deactivateProduct } from "../services/api";
+import { useAuth } from "../context/useAuth";
 import StatusBadge from "../components/StatusBadge";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
@@ -35,6 +36,7 @@ const initialEditForm = {
 };
 
 function ProductsPage() {
+  const { canManageProducts } = useAuth();
   const [products, setProducts]       = useState([]);
   const [vendors, setVendors]         = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -367,15 +369,17 @@ function ProductsPage() {
               <RefreshCw size={13} />
               <span>Refresh</span>
             </button>
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={handleOpenCreate}
-              id="add-product-btn"
-              title="Add a new product"
-            >
-              <PackagePlus size={14} />
-              <span>Add Product</span>
-            </button>
+            {canManageProducts && (
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleOpenCreate}
+                id="add-product-btn"
+                title="Add a new product"
+              >
+                <PackagePlus size={14} />
+                <span>Add Product</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -557,16 +561,18 @@ function ProductsPage() {
                         <td><StatusBadge status={p.status} /></td>
                         <td style={{ textAlign: "right" }}>
                           <div style={{ display: "inline-flex", gap: 6, alignItems: "center", justifyContent: "flex-end" }}>
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-sm"
-                              onClick={() => handleOpenEdit(p)}
-                              title="Edit Product"
-                              style={{ gap: 4, padding: "3px 8px" }}
-                            >
-                              <Edit size={12} /> Edit
-                            </button>
-                            {(p.status || "Available").toLowerCase() === "available" && (
+                            {canManageProducts && (
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => handleOpenEdit(p)}
+                                title="Edit Product"
+                                style={{ gap: 4, padding: "3px 8px" }}
+                              >
+                                <Edit size={12} /> Edit
+                              </button>
+                            )}
+                            {canManageProducts && (p.status || "Available").toLowerCase() === "available" && (
                               <button
                                 type="button"
                                 className="btn btn-ghost btn-sm"
