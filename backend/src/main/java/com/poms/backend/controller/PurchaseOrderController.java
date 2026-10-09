@@ -2,6 +2,7 @@ package com.poms.backend.controller;
 
 import com.poms.backend.config.OpenApiConfig;
 import com.poms.backend.dto.CreatePurchaseOrderRequest;
+import com.poms.backend.dto.PurchaseOrderReceivingDetailsResponse;
 import com.poms.backend.dto.UpdatePurchaseOrderRequest;
 import com.poms.backend.dto.UpdateStatusRequest;
 import com.poms.backend.entity.PurchaseOrder;
@@ -30,6 +31,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 @RestController
@@ -118,6 +120,45 @@ public class PurchaseOrderController {
         response.put("items", items);
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * GET /api/purchase-orders/:id/receiving-details
+     * Returns purchase order header information, vendor name, and line items with received and remaining quantities.
+     * Used by Goods Receipt receiving modal.
+     * Allowed roles: ADMIN, MANAGER, EMPLOYEE.
+     */
+    @GetMapping("/{id}/receiving-details")
+    @Operation(
+            summary = "Get purchase order receiving details",
+            description = "Protected endpoint. Returns purchase order details with vendor name and line items showing ordered, received, and remaining quantities for Goods Receipt creation. Allowed roles: ADMIN, MANAGER, EMPLOYEE."
+    )
+    @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Purchase order receiving details retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = PurchaseOrderReceivingDetailsResponse.class))
+            ),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Missing or invalid JWT Bearer token"),
+            @ApiResponse(responseCode = "404", description = "Purchase order not found with specified ID")
+    })
+    public ResponseEntity<?> getPurchaseOrderReceivingDetails(
+            @Parameter(description = "Primary key ID of the purchase order", required = true, example = "10")
+            @PathVariable Integer id) {
+        if (id == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Purchase order ID is required"));
+        }
+        try {
+            PurchaseOrderReceivingDetailsResponse response = purchaseOrderService.getPurchaseOrderReceivingDetails(id);
+            return ResponseEntity.ok(response);
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Purchase order not found"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage()));
+        }
     }
 
     /**

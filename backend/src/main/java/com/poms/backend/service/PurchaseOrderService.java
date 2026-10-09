@@ -1,10 +1,15 @@
 package com.poms.backend.service;
 
 import com.poms.backend.dto.CreatePurchaseOrderRequest;
+import com.poms.backend.dto.PurchaseOrderReceivingDetailsResponse;
+import com.poms.backend.dto.PurchaseOrderReceivingItemResponse;
 import com.poms.backend.dto.UpdatePurchaseOrderRequest;
+import com.poms.backend.entity.Product;
 import com.poms.backend.entity.PurchaseOrder;
 import com.poms.backend.entity.PurchaseOrderItem;
 import com.poms.backend.entity.PurchaseOrderItemId;
+import com.poms.backend.entity.Vendor;
+import com.poms.backend.repository.GoodsReceiptItemRepository;
 import com.poms.backend.repository.ProductRepository;
 import com.poms.backend.repository.PurchaseOrderItemRepository;
 import com.poms.backend.repository.PurchaseOrderRepository;
@@ -26,15 +31,18 @@ public class PurchaseOrderService {
     private final PurchaseOrderItemRepository purchaseOrderItemRepository;
     private final VendorRepository vendorRepository;
     private final ProductRepository productRepository;
+    private final GoodsReceiptItemRepository goodsReceiptItemRepository;
 
     public PurchaseOrderService(PurchaseOrderRepository purchaseOrderRepository,
                                 PurchaseOrderItemRepository purchaseOrderItemRepository,
                                 VendorRepository vendorRepository,
-                                ProductRepository productRepository) {
+                                ProductRepository productRepository,
+                                GoodsReceiptItemRepository goodsReceiptItemRepository) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.purchaseOrderItemRepository = purchaseOrderItemRepository;
         this.vendorRepository = vendorRepository;
         this.productRepository = productRepository;
+        this.goodsReceiptItemRepository = goodsReceiptItemRepository;
     }
 
     public List<PurchaseOrder> getAllPurchaseOrders() {
@@ -345,5 +353,78 @@ public class PurchaseOrderService {
             }
         }
         return null;
+    }
+
+    /**
+     * Read-only query retrieving purchase order details and line-item receiving progress
+     * for Goods Receipt creation.
+     * Calculates received quantities across prior receipts and computes remaining quantities.
+     */
+    @Transactional(readOnly = true)
+    public PurchaseOrderReceivingDetailsResponse getPurchaseOrderReceivingDetails(Integer purchaseOrderId) {
+        if (purchaseOrderId == null) {
+            throw new IllegalArgumentException("Purchase order ID is required");
+        }
+
+        PurchaseOrder po = purchaseOrderRepository.findById(purchaseOrderId)
+                .orElseThrow(() -> new NoSuchElementException("Purchase order not found with ID: " + purchaseOrderId));
+
+        // Resolve vendor name
+        String vendorName = null;
+        if (po.getVendorId() != null) {
+            vendorName = vendorRepository.findById(po.getVendorId())
+                    .map(Vendor::getVendorName)
+                    .orElse(null);
+        }
+
+        // Load PO items
+        List<PurchaseOrderItem> poItems = purchaseOrderItemRepository.findByIdPurchaseOrderId(po.getId());
+
+        // Calculate received quantities by product across prior goods receipts
+        List<Object[]> receivedSums = goodsReceiptItemRepository.sumReceivedQuantitiesByPurchaseOrderId(po.getId());
+        Map<Integer, Integer> receivedQuantityMap = new HashMap<>();
+        if (receivedSums != null) {
+            for (Object[] row : receivedSums) {
+                Integer prodId = (Integer) row[0];
+                Number sumQty = (Number) row[1];
+                receivedQuantityMap.put(prodId, sumQty != null ? sumQty.intValue() : 0);
+            }
+        }
+
+        // Build item receiving responses
+        List<PurchaseOrderReceivingItemResponse> itemResponses = new ArrayList<>();
+        if (poItems != null) {
+            for (PurchaseOrderItem poItem : poItems) {
+                Integer productId = poItem.getId() != null ? poItem.getId().getProductId() : null;
+                String productName = null;
+                if (productId != null) {
+                    productName = productRepository.findById(productId)
+                            .map(Product::getProductName)
+                            .orElse(null);
+                }
+
+                int orderedQty = poItem.getQuantity() != null ? poItem.getQuantity() : 0;
+                int receivedQty = productId != null ? receivedQuantityMap.getOrDefault(productId, 0) : 0;
+                int remainingQty = Math.max(0, orderedQty - receivedQty);
+
+                itemResponses.add(new PurchaseOrderReceivingItemResponse(
+                        productId,
+                        productName,
+                        orderedQty,
+                        receivedQty,
+                        remainingQty
+                ));
+            }
+        }
+
+        return new PurchaseOrderReceivingDetailsResponse(
+                po.getId(),
+                po.getPoNumber(),
+                po.getStatus(),
+                po.getVendorId(),
+                vendorName,
+                po.getOrderDate(),
+                itemResponses
+        );
     }
 }
