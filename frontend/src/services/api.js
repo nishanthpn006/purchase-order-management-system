@@ -64,6 +64,8 @@ export const updatePurchaseOrder     = (id, data) => api.put(`/purchase-orders/$
 export const cancelPurchaseOrder     = (id) => api.patch(`/purchase-orders/${id}/cancel`);
 export const updatePurchaseOrderStatus = (id, status) =>
   api.patch(`/purchase-orders/${id}/status`, { status });
+export const getPurchaseOrderReceivingDetails = (id) =>
+  api.get(`/purchase-orders/${id}/receiving-details`);
 
 // ── Inventory service functions ──────────────────────────────
 export const getInventory            = () => api.get("/inventory");
@@ -72,5 +74,6 @@ export const getInventoryById        = (id) => api.get(`/inventory/${id}`);
 // ── Goods Receipts service functions ─────────────────────────
 export const getGoodsReceipts        = () => api.get("/goods-receipts");
 export const getGoodsReceiptById     = (id) => api.get(`/goods-receipts/${id}`);
+export const createGoodsReceipt      = (data) => api.post("/goods-receipts", data);
 
 export default api;
