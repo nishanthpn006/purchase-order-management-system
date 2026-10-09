@@ -12,19 +12,19 @@ const PAGE_META = {
 };
 
 function Navbar({ onMenuToggle, currentPath }) {
-  const { user, logout } = useAuth();
+  const { user, role, logout } = useAuth();
   const navigate = useNavigate();
 
   const meta = PAGE_META[currentPath] || { title: "POMS", subtitle: "Enterprise Procurement" };
 
-  const displayName = user?.name || "Nishanth PN";
-  const displayRole = user?.role || "ADMIN";
-  const initials = displayName
+  const displayName = user?.name || user?.fullName || "User";
+  const displayRole = role || "USER";
+  const initials = (displayName
     .split(" ")
     .map((n) => n[0])
     .slice(0, 2)
     .join("")
-    .toUpperCase();
+    .toUpperCase()) || "U";
 
   const handleLogout = () => {
     logout();

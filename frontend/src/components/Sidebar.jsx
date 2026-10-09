@@ -27,7 +27,7 @@ const NAV_GROUPS = [
 ];
 
 function Sidebar({ isOpen, onClose }) {
-  const { user, logout } = useAuth();
+  const { user, role, logout } = useAuth();
   const navigate = useNavigate();
   const [navSearch, setNavSearch] = useState("");
 
@@ -36,14 +36,14 @@ function Sidebar({ isOpen, onClose }) {
     navigate("/", { replace: true });
   };
 
-  const displayName = user?.name || "Nishanth PN";
-  const displayRole = user?.role || "ADMIN";
-  const initials = displayName
+  const displayName = user?.name || user?.fullName || "User";
+  const displayRole = role || "USER";
+  const initials = (displayName
     .split(" ")
     .map((n) => n[0])
     .slice(0, 2)
     .join("")
-    .toUpperCase() || "NP";
+    .toUpperCase()) || "U";
 
   const filteredGroups = NAV_GROUPS.map((group) => ({
     ...group,
