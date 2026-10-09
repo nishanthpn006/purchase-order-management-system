@@ -30,9 +30,7 @@ function fmtCurrency(amount) {
 }
 
 function PurchaseOrdersPage() {
-  const { user } = useAuth();
-  const userRole = (user?.role || "").toUpperCase();
-  const canUpdateStatus = userRole === "ADMIN" || userRole === "MANAGER";
+  const { canManagePurchaseOrders } = useAuth();
 
   const [orders, setOrders]       = useState([]);
   const [vendors, setVendors]     = useState([]);
@@ -802,7 +800,7 @@ function PurchaseOrdersPage() {
                             >
                               View
                             </button>
-                            {canUpdateStatus && po.status === "Pending" && (
+                            {canManagePurchaseOrders && po.status === "Pending" && (
                               <button
                                 type="button"
                                 className="btn btn-ghost btn-sm"
@@ -828,7 +826,7 @@ function PurchaseOrdersPage() {
                                 <span>Receive Items</span>
                               </button>
                             )}
-                            {canUpdateStatus && (po.status === "Pending" || po.status === "Approved") && (
+                            {canManagePurchaseOrders && (po.status === "Pending" || po.status === "Approved") && (
                               <button
                                 type="button"
                                 className="btn btn-ghost btn-sm"
@@ -1171,7 +1169,7 @@ function PurchaseOrdersPage() {
                           <PackageCheck size={13} />
                           <span>Receive Items</span>
                         </button>
-                        {canUpdateStatus && (
+                        {canManagePurchaseOrders && (
                           <button
                             type="button"
                             className="btn btn-sm btn-danger"
@@ -1185,7 +1183,7 @@ function PurchaseOrdersPage() {
                           </button>
                         )}
                       </div>
-                    ) : canUpdateStatus ? (
+                    ) : canManagePurchaseOrders ? (
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                         {selectedPO.status === "Pending" && (
                           <>

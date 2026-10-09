@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, UserPlus, ExternalLink, RefreshCw, X, Plus, Edit, Ban, AlertTriangle } from "lucide-react";
 import { getVendors, getVendorById, createVendor, updateVendor, deactivateVendor } from "../services/api";
+import { useAuth } from "../context/useAuth";
 import StatusBadge from "../components/StatusBadge";
 import LoadingState from "../components/LoadingState";
 import EmptyState from "../components/EmptyState";
@@ -35,6 +36,7 @@ const initialEditForm = {
 };
 
 function VendorsPage() {
+  const { canManageVendors } = useAuth();
   const [vendors, setVendors]               = useState([]);
   const [loading, setLoading]               = useState(true);
   const [error, setError]                   = useState("");
@@ -386,15 +388,17 @@ function VendorsPage() {
               <RefreshCw size={13} />
               <span>Refresh</span>
             </button>
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={handleOpenCreate}
-              id="add-vendor-btn"
-              title="Add a new supplier vendor"
-            >
-              <UserPlus size={14} />
-              <span>Add Vendor</span>
-            </button>
+            {canManageVendors && (
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleOpenCreate}
+                id="add-vendor-btn"
+                title="Add a new supplier vendor"
+              >
+                <UserPlus size={14} />
+                <span>Add Vendor</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -585,17 +589,19 @@ function VendorsPage() {
                             >
                               <ExternalLink size={12} /> View
                             </button>
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-sm"
-                              onClick={() => handleOpenEdit(v)}
-                              title="Edit Vendor"
-                              id={`edit-vendor-${v.id}-btn`}
-                              style={{ gap: 4, padding: "3px 8px" }}
-                            >
-                              <Edit size={12} /> Edit
-                            </button>
-                            {(v.status || "Active").toLowerCase() === "active" && (
+                            {canManageVendors && (
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => handleOpenEdit(v)}
+                                title="Edit Vendor"
+                                id={`edit-vendor-${v.id}-btn`}
+                                style={{ gap: 4, padding: "3px 8px" }}
+                              >
+                                <Edit size={12} /> Edit
+                              </button>
+                            )}
+                            {canManageVendors && (v.status || "Active").toLowerCase() === "active" && (
                               <button
                                 type="button"
                                 className="btn btn-ghost btn-sm"
@@ -697,7 +703,7 @@ function VendorsPage() {
               >
                 Close
               </button>
-              {selectedVendor && (
+              {canManageVendors && selectedVendor && (
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
@@ -712,7 +718,7 @@ function VendorsPage() {
                   <span>Edit</span>
                 </button>
               )}
-              {selectedVendor && (selectedVendor.status || "Active").toLowerCase() === "active" && (
+              {canManageVendors && selectedVendor && (selectedVendor.status || "Active").toLowerCase() === "active" && (
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"

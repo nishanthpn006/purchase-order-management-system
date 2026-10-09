@@ -74,9 +74,35 @@ export function AuthProvider({ children }) {
         }
     }, [token]);
 
+    // Role normalization & permissions
+    const role = (user?.role || "").trim().toUpperCase();
+
+    const isAdmin = role === "ADMIN";
+    const isManager = role === "MANAGER";
+    const isEmployee = role === "EMPLOYEE";
+
+    const canManageVendors = isAdmin || isManager;
+    const canManageProducts = isAdmin || isManager;
+    const canManagePurchaseOrders = isAdmin || isManager;
+    const canReceiveGoods = isAdmin || isManager || isEmployee;
+
     return (
         <AuthContext.Provider
-            value={{ user, token, isAuthenticated: !!token, login, logout }}
+            value={{
+                user,
+                token,
+                isAuthenticated: !!token,
+                role,
+                isAdmin,
+                isManager,
+                isEmployee,
+                canManageVendors,
+                canManageProducts,
+                canManagePurchaseOrders,
+                canReceiveGoods,
+                login,
+                logout,
+            }}
         >
             {children}
         </AuthContext.Provider>
