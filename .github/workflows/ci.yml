@@ -72,3 +72,18 @@ jobs:
           npm ci
           npm run lint
           npm run build
+
+  docker-build:
+    name: Backend Docker Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend Docker image
+        run: |
+          docker build -t poms-backend:test ./backend
