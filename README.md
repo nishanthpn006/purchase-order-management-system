@@ -123,13 +123,35 @@ psql -U postgres -d purchase_order_db -f database/seed.sql
 
 ### 3. Backend Setup (Spring Boot)
 
-Navigate to the `backend/` directory, verify configuration in `src/main/resources/application.properties`, and start the Spring Boot service:
+The application secures database credentials and JWT signing keys using environment variables. Set the required variables in your active terminal before starting the backend:
+
+#### Windows PowerShell:
+
+```powershell
+# Set required secrets (no fallback defaults in configuration)
+$env:SPRING_DATASOURCE_PASSWORD = "your_postgres_password"
+$env:JWT_SECRET = "your_secure_jwt_signing_key_at_least_256_bits"
+
+# Optional overrides (defaults to localhost:5432 and http://localhost:5173)
+# $env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5432/purchase_order_db?currentSchema=public"
+# $env:SPRING_DATASOURCE_USERNAME = "postgres"
+# $env:CORS_ALLOWED_ORIGINS = "http://localhost:5173"
+
+# Run Spring Boot backend:
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+
+#### Linux / macOS Bash:
 
 ```bash
+# Set required secrets
+export SPRING_DATASOURCE_PASSWORD="your_postgres_password"
+export JWT_SECRET="your_secure_jwt_signing_key_at_least_256_bits"
+
+# Run Spring Boot backend:
 cd backend
 ./mvnw spring-boot:run
-# On Windows PowerShell:
-# .\mvnw.cmd spring-boot:run
 ```
 
 The backend server runs on `http://localhost:5000`. Swagger documentation is available at `http://localhost:5000/swagger-ui.html`.
@@ -154,13 +176,17 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## Configuration
 
-The backend configuration is managed via `backend/src/main/resources/application.properties`:
+The backend configuration is managed via `backend/src/main/resources/application.properties` and environment variables. See `.env.example` for a complete environment template.
 
-- **Port**: `server.port=5000`
-- **Datasource**: PostgreSQL connection details (`spring.datasource.url`, `username`, `password`)
-- **JPA / Hibernate**: DDL and dialect settings
-- **JWT**: `jwt.secret` and expiration duration
-- **Swagger / OpenAPI**: Path endpoints at `/swagger-ui.html` and `/v3/api-docs`
+| Property Key | Environment Variable | Default / Fallback | Description |
+| :--- | :--- | :--- | :--- |
+| `server.port` | `SERVER_PORT` | `5000` | HTTP port for REST API |
+| `spring.datasource.url` | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/purchase_order_db?currentSchema=public` | PostgreSQL JDBC connection URL |
+| `spring.datasource.username` | `SPRING_DATASOURCE_USERNAME` | `postgres` | Database user |
+| `spring.datasource.password` | `SPRING_DATASOURCE_PASSWORD` / `DB_PASSWORD` | *(None — Required)* | Database user password |
+| `jwt.secret` | `JWT_SECRET` | *(None — Required)* | HMAC-SHA256 signing secret key (minimum 256 bits) |
+| `jwt.expiration` | `JWT_EXPIRATION` | `86400000` (24h) | Token validity period in milliseconds |
+| `cors.allowed-origins` | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated list of allowed client origins |
 
 ---
 

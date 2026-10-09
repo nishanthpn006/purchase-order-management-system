@@ -33,7 +33,7 @@ class UserServiceTest {
         sampleUser.setId(1);
         sampleUser.setFullName("John Doe");
         sampleUser.setEmail("john.doe@example.com");
-        sampleUser.setPassword("encodedPassword123");
+        sampleUser.setPassword("$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy");
         sampleUser.setRole("Admin");
         sampleUser.setStatus("Active");
         sampleUser.setCreatedAt(LocalDateTime.now());

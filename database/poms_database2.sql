@@ -1,10 +1,10 @@
 insert into users (full_name, email, password, role, status)
 values
-('Nishanth PN', 'nishanth@poms.com', 'admin123', 'Admin', 'Active'),
-('Arun Kumar', 'arun@poms.com', 'manager123', 'Manager', 'Active'),
-('Priya Sharma', 'priya@poms.com', 'employee123', 'Employee', 'Active'),
-('Rahul Das', 'rahul@poms.com', 'employee456', 'Employee', 'Active'),
-('Sneha R', 'sneha@poms.com', 'manager456', 'Manager', 'Active');
+('Nishanth PN', 'nishanth@poms.com', '$2a$10$i1B0zTZJFi/tKd4rkC.RI.wsjAXX7neoq9mtUwlx9P408XRtauwUG', 'Admin', 'Active'),
+('Arun Kumar', 'arun@poms.com', '$2a$10$TplK03kewWU.8g2hlmBPiOCKb4wgBTNBBLSScD29gww9c6M8TBH/C', 'Manager', 'Active'),
+('Priya Sharma', 'priya@poms.com', '$2a$10$saWYiUl5VVPP3mlIJxNPYepswtPtLQAF0Eaqi5QKJMlkFml3JnPpi', 'Employee', 'Active'),
+('Rahul Das', 'rahul@poms.com', '$2a$10$5LkSSluBsxw1Yh6H9oCqY.2uv8LDLiQi8TEFL4lmEb5hNYsZFf0Ui', 'Employee', 'Active'),
+('Sneha R', 'sneha@poms.com', '$2a$10$MJ3m6.NYdFgEUAyJSZEskuCzbcX5bS3ogtzbYpQ0bL8RbbUKxyEKC', 'Manager', 'Active');
 
 select id, full_name from users;
 

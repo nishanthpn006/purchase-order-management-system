@@ -20,7 +20,7 @@ TRUNCATE TABLE `users`;
 
 -- ------------------------------------------------------------
 -- Seed Data: users
--- Password: admin123 (stored as bcrypt hash)
+-- Passwords stored as BCrypt hashes
 -- ------------------------------------------------------------
 INSERT INTO `users` (`id`, `full_name`, `email`, `password`, `role`, `status`, `created_at`) VALUES
 (1, 'Administrator', 'admin@poms.com', '$2b$10$QNgY2fyRPalFUEbmozJ53ODZ.EewvlHiCXmfRZAJWa9AEOhAs0dXS', 'Admin', 'Active', '2026-08-06 15:42:49');

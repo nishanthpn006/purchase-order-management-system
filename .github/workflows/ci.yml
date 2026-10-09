@@ -30,6 +30,7 @@ jobs:
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/purchase_order_db?currentSchema=public
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      JWT_SECRET: poms-ci-test-jwt-secret-key-must-be-at-least-256-bits-long
 
     steps:
       - name: Checkout repository
