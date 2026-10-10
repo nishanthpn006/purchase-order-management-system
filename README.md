@@ -4,10 +4,9 @@
 
 ---
 
-## Demo & Video Links
-
-- **Live Demo**: Planned for production deployment
-- **Swagger OpenAPI Docs**: [http://localhost:5000/swagger-ui.html](http://localhost:5000/swagger-ui.html) (when backend is running)
+- **Live Frontend**: [https://purchase-order-management-system-psi.vercel.app/](https://purchase-order-management-system-psi.vercel.app/)
+- **Backend Health**: [https://poms-backend-z882.onrender.com/api/health](https://poms-backend-z882.onrender.com/api/health)
+- **Local Swagger OpenAPI Docs**: [http://localhost:5000/swagger-ui.html](http://localhost:5000/swagger-ui.html) *(enabled for local development; intentionally disabled in production for security hardening)*
 
 ---
 
@@ -168,9 +167,16 @@ npm run dev
 
 ### 5. Access Application
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+- **Local Development**: [http://localhost:5173](http://localhost:5173)
+- **Live Production**: [https://purchase-order-management-system-psi.vercel.app/](https://purchase-order-management-system-psi.vercel.app/)
 
-- **Demo Credentials**: `nishanth@poms.com` / `admin123`
+#### User Roles & Access Overview
+
+Authentication uses JWT Bearer tokens with role-based access control:
+
+- **Administrator (`Admin`)**: Full application management permissions, subject to the configured endpoint security rules.
+- **Procurement Manager (`Manager`)**: Operational procurement management (Vendors, Products, Purchase Orders, and Goods Receipts).
+- **Employee (`Employee`)**: Procurement and catalog visibility, Goods Receipt entry (`POST /api/goods-receipts`). Authorized at the backend API layer to create purchase orders (`POST /api/purchase-orders`), but restricted from editing, cancelling, or changing purchase order status. *(Note: In the current frontend UI, the "Create Purchase Order" button is hidden from Employees via `canManagePurchaseOrders`.)*
 
 ---
 
@@ -180,7 +186,7 @@ The backend configuration is managed via `backend/src/main/resources/application
 
 | Property Key | Environment Variable | Default / Fallback | Description |
 | :--- | :--- | :--- | :--- |
-| `server.port` | `SERVER_PORT` | `5000` | HTTP port for REST API |
+| `server.port` | `SERVER_PORT` / `PORT` | `5000` | HTTP port for REST API |
 | `spring.datasource.url` | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/purchase_order_db?currentSchema=public` | PostgreSQL JDBC connection URL |
 | `spring.datasource.username` | `SPRING_DATASOURCE_USERNAME` | `postgres` | Database user |
 | `spring.datasource.password` | `SPRING_DATASOURCE_PASSWORD` / `DB_PASSWORD` | *(None — Required)* | Database user password |
@@ -192,28 +198,45 @@ The backend configuration is managed via `backend/src/main/resources/application
 
 ## API Documentation
 
-Interactive Swagger OpenAPI documentation is integrated directly into the Spring Boot backend:
+Interactive Swagger OpenAPI documentation is integrated directly into the Spring Boot backend for local development and testing:
 
-- **Swagger UI**: [http://localhost:5000/swagger-ui.html](http://localhost:5000/swagger-ui.html)
-- **OpenAPI JSON Spec**: [http://localhost:5000/v3/api-docs](http://localhost:5000/v3/api-docs)
+- **Local Swagger UI**: [http://localhost:5000/swagger-ui.html](http://localhost:5000/swagger-ui.html)
+- **Local OpenAPI JSON Spec**: [http://localhost:5000/v3/api-docs](http://localhost:5000/v3/api-docs)
 
-### Core REST Endpoints
+> **Security Note**: Swagger UI and OpenAPI documentation endpoints are enabled only in local development profiles. In production (`spring.profiles.active=prod`), these endpoints are explicitly disabled via `application-prod.properties` for security hardening.
 
-| Method | Endpoint | Authentication | Description |
-| --- | --- | --- | --- |
-| `POST` | `/api/login` | Public | Authenticates user & returns JWT token |
-| `GET` | `/api/me` | Protected (JWT) | Validates token & returns authenticated user session |
-| `GET` | `/api/dashboard/stats` | Protected (JWT) | Returns aggregated KPI counts and alerts |
-| `GET` | `/api/vendors` | Protected (JWT) | Retrieves all registered vendor records |
-| `GET` | `/api/vendors/{id}` | Protected (JWT) | Retrieves single vendor by ID |
-| `GET` | `/api/products` | Protected (JWT) | Retrieves product catalog |
-| `GET` | `/api/products/{id}` | Protected (JWT) | Retrieves single product by ID |
-| `GET` | `/api/purchase-orders` | Protected (JWT) | Retrieves all purchase orders |
-| `GET` | `/api/purchase-orders/{id}` | Protected (JWT) | Retrieves purchase order details and items |
-| `POST` | `/api/purchase-orders` | Protected (JWT) | Creates new purchase order with line items |
-| `PATCH` | `/api/purchase-orders/{id}/status` | Protected (Admin/Manager) | Updates status (`Pending`, `Approved`, `Completed`, `Rejected`) |
-| `GET` | `/api/inventory` | Protected (JWT) | Retrieves inventory stock records |
-| `GET` | `/api/goods-receipts` | Protected (JWT) | Retrieves goods receipts delivery records |
+### Core REST Endpoints & Authorization Matrix
+
+The table below delineates backend Spring Security authorization rules alongside frontend UI action visibility:
+
+| Method | Endpoint | Backend Authorization | Authorized Roles | Frontend UI Visibility / Action Guard |
+| :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/api/login` | `permitAll()` | Public | Public login interface |
+| `GET` | `/api/health` | `permitAll()` | Public | Automated monitoring |
+| `GET` | `/api/me` | `authenticated()` | Admin, Manager, Employee | Session profile synchronization |
+| `GET` | `/api/dashboard/stats` | `authenticated()` | Admin, Manager, Employee | Visible on Dashboard |
+| `GET` | `/api/vendors` | `authenticated()` | Admin, Manager, Employee | Vendors directory list view |
+| `GET` | `/api/vendors/{id}` | `authenticated()` | Admin, Manager, Employee | Vendor detail view |
+| `POST` | `/api/vendors` | `hasAnyRole("ADMIN", "MANAGER")` | Admin, Manager | Add Vendor modal (`canManageVendors`) |
+| `PUT` | `/api/vendors/{id}` | `hasAnyRole("ADMIN", "MANAGER")` | Admin, Manager | Edit Vendor modal (`canManageVendors`) |
+| `PATCH` | `/api/vendors/{id}/deactivate` | `hasAnyRole("ADMIN", "MANAGER")` | Admin, Manager | Deactivate Vendor button (`canManageVendors`) |
+| `GET` | `/api/products` | `authenticated()` | Admin, Manager, Employee | Products catalog list view |
+| `GET` | `/api/products/{id}` | `authenticated()` | Admin, Manager, Employee | Product detail view |
+| `POST` | `/api/products` | `hasAnyRole("ADMIN", "MANAGER")` | Admin, Manager | Add Product modal (`canManageProducts`) |
+| `PUT` | `/api/products/{id}` | `hasAnyRole("ADMIN", "MANAGER")` | Admin, Manager | Edit Product modal (`canManageProducts`) |
+| `PATCH` | `/api/products/{id}/deactivate` | `hasAnyRole("ADMIN", "MANAGER")` | Admin, Manager | Deactivate Product button (`canManageProducts`) |
+| `GET` | `/api/purchase-orders` | `authenticated()` | Admin, Manager, Employee | Purchase orders list view |
+| `GET` | `/api/purchase-orders/{id}` | `authenticated()` | Admin, Manager, Employee | Purchase order itemized detail view |
+| `GET` | `/api/purchase-orders/{id}/receiving-details` | `authenticated()` | Admin, Manager, Employee | PO item delivery balance view |
+| `POST` | `/api/purchase-orders` | `authenticated()` | Admin, Manager, Employee | Create PO button *(Admin & Manager in current UI)* |
+| `PUT` | `/api/purchase-orders/{id}` | `hasAnyRole("ADMIN", "MANAGER")` | Admin, Manager | Edit PO action (`canManagePurchaseOrders`) |
+| `PATCH` | `/api/purchase-orders/{id}/cancel` | `hasAnyRole("ADMIN", "MANAGER")` | Admin, Manager | Cancel PO action (`canManagePurchaseOrders`) |
+| `PATCH` | `/api/purchase-orders/{id}/status` | `hasAnyRole("ADMIN", "MANAGER")` | Admin, Manager | Update status action (`canManagePurchaseOrders`) |
+| `GET` | `/api/inventory` | `authenticated()` | Admin, Manager, Employee | Inventory monitoring table |
+| `GET` | `/api/inventory/{id}` | `authenticated()` | Admin, Manager, Employee | Inventory item detail view |
+| `GET` | `/api/goods-receipts` | `authenticated()` | Admin, Manager, Employee | Goods receipts delivery log |
+| `GET` | `/api/goods-receipts/{id}` | `authenticated()` | Admin, Manager, Employee | Goods receipt detail view |
+| `POST` | `/api/goods-receipts` | `hasAnyRole("ADMIN", "MANAGER", "EMPLOYEE")` | Admin, Manager, Employee | Receive Items action modal (`canReceiveGoods`) |
 
 ---
 
@@ -242,7 +265,12 @@ npm run build
 
 ## Deployment
 
-Currently configured for **Local Development**. Production deployment is scheduled for Review-II.
+POMS is deployed across modern cloud infrastructure:
+
+- **Frontend Client**: React 19 + Vite hosted on **Vercel** with automatic client-side route rewrites.
+- **Backend API**: Spring Boot 3 + Java 21 containerized on **Render** (Docker runtime, binding to dynamic `$PORT`).
+- **Relational Database**: Managed **PostgreSQL 15+ on Neon** with secure TLS connections and connection pooling.
+- **Continuous Integration**: GitHub Actions workflow (`.github/workflows/ci.yml`) automatically builds and tests the backend with a live PostgreSQL 17 service container, executes frontend build/lint checks, and validates the backend Docker image.
 
 ---
 
@@ -287,11 +315,10 @@ purchase-order-management-system/
 
 ## Future Enhancements
 
-- **Vendor & Product CRUD**: Interactive creation, updating, and deactivation of vendors and products.
-- **Purchase Order Creation Builder**: Multi-item PO builder form with automatic price totals.
-- **Goods Receipt Entry Form**: Delivery logger updating inventory stock levels upon receipt verification.
-- **PDF Export**: Generate downloadable PDF documents for purchase orders.
-- **Audit Logs**: Activity logging tracking system actions and user timestamps.
+- **PDF Purchase Order Export**: Automated generation of branded, downloadable PDF documents for purchase orders.
+- **Audit Logging Table**: Dedicated activity audit trail tracking critical entity changes and user timestamps.
+- **Email Notifications**: Automated email alerts for pending approvals, purchase order status transitions, and low stock thresholds.
+- **Multi-Currency Support**: Support for international procurement contracts with exchange rate conversions.
 
 ---
 

@@ -5,20 +5,24 @@ All notable changes to the Purchase Order Management System (POMS) project will 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - Review-II (In Progress)
+## [1.0.0] - 2026-10-10 (Review-II Production Release)
 
 ### Added
-- **Backend Architecture Consolidation**: Consolidated the Spring Boot 3 REST API into `backend/`, standardizing on Java 21, Spring Data JPA, Spring Security, and PostgreSQL while removing the legacy Node.js/Express prototype.
-- **Service Layer Test Suite**: Added comprehensive JUnit 5 + Mockito unit tests covering 100% of service methods.
-- **Role-Based Access Control (RBAC)**: Role-level authorization (`Admin`, `Manager`, `Employee`) enforced via Spring Security JWT filter.
-- **Purchase Order Itemized Details**: Added `GET /api/purchase-orders/{id}` endpoint returning full PO metadata and joined item list.
-- **Transactional PO Creation**: Added `POST /api/purchase-orders` endpoint with item total calculations and status workflow.
-- **Approval & Status Workflow**: Added `PATCH /api/purchase-orders/{id}/status` endpoint restricted to `Admin` and `Manager` roles.
+- **Cloud Production Deployment**: Deployed production architecture connecting React 19 on Vercel, Spring Boot 3 on Render, and PostgreSQL on Neon.
+- **Backend Architecture Consolidation**: Consolidated the Spring Boot 3 REST API into `backend/`, standardizing on Java 21, Spring Data JPA, Spring Security, and PostgreSQL while replacing the legacy Node.js/Express prototype.
+- **Service Layer Test Suite**: Comprehensive JUnit 5 + Mockito unit tests covering 100% of service methods, integrated with GitHub Actions CI.
+- **Role-Based Access Control (RBAC)**: Role-level authorization (`Admin`, `Manager`, `Employee`) enforced via Spring Security JWT filter and mapped to frontend UI permission guards.
+- **Vendor & Product Full CRUD**: Complete create, update, and soft-deactivation endpoints and modal UI workflows.
+- **Purchase Order Itemized Details & Creation**: Multi-item PO builder (`POST /api/purchase-orders`), item detail retrieval (`GET /api/purchase-orders/{id}`), and receiving balance tracking (`GET /api/purchase-orders/{id}/receiving-details`).
+- **Approval & Status Workflow**: Restricted status transitions (`PATCH /api/purchase-orders/{id}/status`) and order cancellation (`PATCH /api/purchase-orders/{id}/cancel`).
+- **Goods Receipt Processing**: Delivery receipt creation (`POST /api/goods-receipts`) linking items to purchase orders with itemized receipt storage (`goods_receipt_items`).
+- **Inventory Auto-Update**: Automatic stock level incrementation in `inventory` upon goods receipt processing.
+- **Production Security Hardening**: Disabled Swagger UI/OpenAPI in production profile (`application-prod.properties`) and externalized all secrets.
 
 ### Planned
-- **Goods Receipt Processing**: Record and validate incoming deliveries against open purchase orders.
-- **Inventory Auto-Update**: Automatically update inventory stock levels upon goods receipt confirmation.
-- **Reports & Analytics**: Summary reports for procurement spend, vendor performance, and inventory turnover.
+- **PDF Purchase Order Export**: Server-side or client-side PDF document generation.
+- **Audit Logging Table**: Dedicated activity audit trail tracking critical entity changes and user timestamps.
+- **Email Notifications**: Automated alerts on purchase order status changes and low inventory thresholds.
 
 ---
 
