@@ -17,8 +17,8 @@ Develop a secure, scalable, and user-friendly Purchase Order Management System (
 
 ### 2. Role-Based Access Control
 
-- Implement different permissions for Administrators, Procurement Managers, Purchase Officers, Finance Staff, and Employees.
-- Restrict access based on user roles.
+- Implement distinct permissions for Administrators, Procurement Managers, and Employees.
+- Enforce backend Spring Security authorization rules alongside frontend UI action guards.
 
 ---
 
@@ -82,13 +82,14 @@ Develop a secure, scalable, and user-friendly Purchase Order Management System (
 
 - Follow Clean Code principles.
 - Apply REST API best practices.
-- Use mysql2 connection pooling with raw SQL queries.
-- Store data in MySQL 8.
-- Implement proper validation.
-- Apply secure authentication.
-- Maintain modular architecture.
-- Produce professional documentation.
-- Deploy the application to a cloud platform.
+- Build a robust Java 21 + Spring Boot 3 enterprise backend.
+- Use Spring Data JPA / Hibernate for object-relational mapping.
+- Store relational data in managed PostgreSQL 15+ on Neon.
+- Implement proper validation and error handling.
+- Apply secure JWT authentication and BCrypt password encryption.
+- Maintain modular architecture and responsive React frontend.
+- Produce professional, accurate documentation.
+- Deploy the application to a cloud platform (Vercel, Render, and Neon).
 
 ---
 

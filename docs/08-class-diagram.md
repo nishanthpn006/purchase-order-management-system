@@ -14,25 +14,45 @@ The Class and Module Structure describes the static organization of the Purchase
 
 ## 3. Class & Component Specifications
 
-### 1. Controllers & Handlers (`backend/src/controllers/`)
+### 1. REST Controllers (`com.poms.backend.controller`)
 
-- `authController`: Manages login credential validation, bcrypt hash comparison, and JWT token issuance.
-- `dashboardController`: Queries and aggregates statistical KPI metrics from MySQL.
-- `vendorController`: Handles retrieval of vendor listings and supplier information.
-- `productController`: Manages catalog item queries joined with vendor data.
-- `purchaseOrderController`: Handles purchase order header queries and vendor/user details.
-- `inventoryController`: Manages inventory stock queries and dynamically computes stock status.
-- `goodsReceiptController`: Handles delivery verification receipt queries.
+- `AuthController`: Handles user login (`POST /api/login`) and profile retrieval (`GET /api/me`).
+- `DashboardController`: Aggregates real-time procurement KPI counts and operational alerts (`GET /api/dashboard/stats`).
+- `VendorController`: Manages vendor directory retrieval and Admin/Manager CRUD operations.
+- `ProductController`: Manages product catalog retrieval and Admin/Manager CRUD operations.
+- `PurchaseOrderController`: Manages order creation, receiving balances, item details, editing, cancellation, and status transitions.
+- `InventoryController`: Manages warehouse inventory queries and low-stock alerts.
+- `GoodsReceiptController`: Manages receipt entry (`POST /api/goods-receipts`) and delivery log retrieval.
+- `HealthController`: Exposes automated uptime verification (`GET /api/health`).
 
-### 2. Middleware (`backend/src/middlewares/`)
+### 2. Service Layer (`com.poms.backend.service`)
 
-- `authMiddleware`: Extracts bearer tokens from authorization headers, validates JWT signatures, and attaches decoded user claims to request objects (`req.user`).
+- `UserService`: User account lookup by email and ID.
+- `DashboardService`: Aggregates KPI statistics from database repositories.
+- `VendorService`: Vendor business logic, duplicate checks, and soft deactivation.
+- `ProductService`: Product catalog business logic, vendor association, and availability updates.
+- `PurchaseOrderService`: Transactional multi-item PO creation, total calculation, and status workflow transitions.
+- `InventoryService`: Warehouse stock level queries and reorder status computations.
+- `GoodsReceiptService`: Transactional delivery receipt processing, itemized receiving balance validation, and automatic inventory incrementation.
 
-### 3. Database Layer (`backend/src/config/db.js`)
+### 3. Repository Layer (`com.poms.backend.repository`)
 
-- `db`: Encapsulates `mysql2/promise` connection pool initialized from environment variables (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`).
+- Spring Data JPA repositories extending `JpaRepository` with custom finder methods:
+  - `UserRepository`, `VendorRepository`, `ProductRepository`, `PurchaseOrderRepository`, `PurchaseOrderItemRepository`, `InventoryRepository`, `GoodsReceiptRepository`, `GoodsReceiptItemRepository`.
 
-### 4. Client-Side Services & Context (`frontend/src/`)
+### 4. Entity Models (`com.poms.backend.entity`)
 
-- `api.js`: Axios instance with global JWT request interceptor and automatic 401 response interceptor.
-- `AuthContext.jsx` / `useAuth.js`: React context provider and hook managing persistent user state and login/logout procedures.
+- JPA mapped entities representing the 8 PostgreSQL tables:
+  - `User`, `Vendor`, `Product`, `PurchaseOrder`, `PurchaseOrderItem` (with `PurchaseOrderItemId` composite key), `Inventory`, `GoodsReceipt`, `GoodsReceiptItem`.
+
+### 5. Security & Authentication (`com.poms.backend.security`)
+
+- `SecurityConfig`: Configures CORS, stateless session management, CSRF disabling, and endpoint RBAC rules.
+- `CustomUserDetailsService`: Bridges database `users` records to Spring Security `UserDetails`.
+- `JwtFilter`: Intercepts protected requests to validate JWT Bearer tokens and establish authentication context.
+- `JwtUtil`: Handles HMAC-SHA256 token generation and claim extraction.
+
+### 6. Client-Side Services & Context (`frontend/src/`)
+
+- `api.js`: Axios instance configured with JWT request interceptor and global 401 redirection handler.
+- `AuthContext.jsx` / `useAuth.js`: React context provider managing token persistence, user profile caching, and permission flags (`isAdmin`, `isManager`, `isEmployee`, `canManageVendors`, `canManageProducts`, `canManagePurchaseOrders`, `canReceiveGoods`).

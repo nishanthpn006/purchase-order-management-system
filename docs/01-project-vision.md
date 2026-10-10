@@ -7,7 +7,7 @@ The Purchase Order Management System (POMS) is a web-based enterprise procuremen
 ## Core Value Proposition
 
 - **Automated Workflow**: Replaces manual purchase order workflows with a structured, role-based web interface.
-- **Data Integrity**: Ensures strict relational integrity across vendors, products, purchase orders, inventory, and goods receipts using MySQL 8.
+- **Data Integrity**: Ensures strict relational integrity across vendors, products, purchase orders, inventory, and goods receipts using PostgreSQL 15+ on Neon.
 - **Security & Access Control**: Protects administrative features through JWT authentication and bcrypt password encryption.
 - **Operational Visibility**: Provides real-time stats and metrics via an interactive React dashboard.
 
